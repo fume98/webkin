@@ -1,0 +1,199 @@
+/* Componentes de interfaz: ventanas, avisos, confirmaciones y campos */
+(function (KF) {
+  'use strict';
+
+  const U = KF.U;
+  const UI = {};
+
+  /* ---------- Avisos breves ---------- */
+  UI.toast = function (msg, type) {
+    const box = document.getElementById('toasts');
+    const el = document.createElement('div');
+    el.className = 'toast ' + (type || 'ok');
+    el.setAttribute('role', 'status');
+    el.innerHTML = U.icon(type === 'error' ? 'alert' : 'check') + '<span>' + U.esc(msg) + '</span>';
+    box.appendChild(el);
+    setTimeout(function () { el.classList.add('hide'); }, 3200);
+    setTimeout(function () { el.remove(); }, 3700);
+  };
+
+  /* ---------- Ventana modal ---------- */
+  let lastFocus = null;
+
+  UI.closeModal = function () {
+    const root = document.getElementById('modal-root');
+    root.innerHTML = '';
+    root.classList.remove('open');
+    document.body.classList.remove('no-scroll');
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  };
+
+  /*
+   * opts: { title, body (html), size: 'sm'|'md'|'lg', submitLabel, danger,
+   *         onSubmit(form) -> false para no cerrar, extraFooter (html), onOpen(el) }
+   */
+  UI.modal = function (opts) {
+    lastFocus = document.activeElement;
+    const root = document.getElementById('modal-root');
+    const hasForm = !!opts.onSubmit;
+    root.innerHTML =
+      '<div class="modal-backdrop" data-close></div>' +
+      '<div class="modal ' + (opts.size || 'md') + '" role="dialog" aria-modal="true" aria-labelledby="modal-title">' +
+        '<' + (hasForm ? 'form novalidate' : 'div') + ' class="modal-inner">' +
+          '<header class="modal-head">' +
+            '<h2 id="modal-title">' + U.esc(opts.title || '') + '</h2>' +
+            '<button type="button" class="btn-icon" data-close aria-label="Cerrar">' + U.icon('x') + '</button>' +
+          '</header>' +
+          '<div class="modal-body">' + (opts.body || '') + '</div>' +
+          '<footer class="modal-foot">' +
+            (opts.extraFooter || '') +
+            '<span class="spacer"></span>' +
+            '<button type="button" class="btn btn-ghost" data-close>' + (hasForm ? 'Cancelar' : 'Cerrar') + '</button>' +
+            (hasForm ? '<button type="submit" class="btn ' + (opts.danger ? 'btn-danger' : 'btn-primary') + '">' +
+              U.icon(opts.danger ? 'trash' : 'check') + (opts.submitLabel || 'Guardar') + '</button>' : '') +
+          '</footer>' +
+        '</' + (hasForm ? 'form' : 'div') + '>' +
+      '</div>';
+    root.classList.add('open');
+    document.body.classList.add('no-scroll');
+
+    root.querySelectorAll('[data-close]').forEach(function (b) {
+      b.addEventListener('click', UI.closeModal);
+    });
+
+    const modalEl = root.querySelector('.modal');
+    if (hasForm) {
+      const form = root.querySelector('form');
+      form.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        if (!UI.validate(form)) return;
+        const result = opts.onSubmit(form);
+        if (result !== false) UI.closeModal();
+      });
+    }
+    if (opts.onOpen) opts.onOpen(modalEl);
+
+    const first = modalEl.querySelector('[autofocus], .modal-body input:not([type=hidden]), .modal-body select, .modal-body textarea');
+    if (first && window.matchMedia('(pointer:fine)').matches) first.focus();
+    return modalEl;
+  };
+
+  UI.confirm = function (opts) {
+    UI.modal({
+      title: opts.title || '¿Estás seguro?',
+      size: 'sm',
+      body: '<p class="confirm-text">' + U.esc(opts.message || '') + '</p>',
+      submitLabel: opts.confirmLabel || 'Sí, eliminar',
+      danger: opts.danger !== false,
+      onSubmit: function () { opts.onConfirm(); }
+    });
+  };
+
+  /* ---------- Validación simple ---------- */
+  UI.validate = function (form) {
+    let ok = true;
+    let firstBad = null;
+    form.querySelectorAll('.field').forEach(function (f) { f.classList.remove('invalid'); });
+    form.querySelectorAll('[required]').forEach(function (input) {
+      if (!String(input.value || '').trim()) {
+        ok = false;
+        const f = input.closest('.field');
+        if (f) f.classList.add('invalid');
+        if (!firstBad) firstBad = input;
+      }
+    });
+    form.querySelectorAll('input[type=email]').forEach(function (input) {
+      if (input.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.value)) {
+        ok = false;
+        const f = input.closest('.field');
+        if (f) f.classList.add('invalid');
+        if (!firstBad) firstBad = input;
+      }
+    });
+    if (!ok) {
+      UI.toast('Revisá los campos marcados en rojo.', 'error');
+      if (firstBad) firstBad.focus();
+    }
+    return ok;
+  };
+
+  UI.formData = function (form) {
+    const out = {};
+    new FormData(form).forEach(function (v, k) { out[k] = typeof v === 'string' ? v.trim() : v; });
+    return out;
+  };
+
+  /* ---------- Generadores de campos ---------- */
+  /*
+   * f: { name, label, type, value, required, placeholder, options, hint, full, rows, min, max, step, attrs }
+   */
+  UI.field = function (f) {
+    const id = 'f_' + f.name;
+    const req = f.required ? ' required' : '';
+    const val = f.value === undefined || f.value === null ? '' : f.value;
+    const ph = f.placeholder ? ' placeholder="' + U.esc(f.placeholder) + '"' : '';
+    const extra = f.attrs || '';
+    let control;
+
+    if (f.type === 'textarea') {
+      control = '<textarea id="' + id + '" name="' + f.name + '" rows="' + (f.rows || 3) + '"' + ph + req + extra + '>' +
+        U.esc(val) + '</textarea>';
+    } else if (f.type === 'select') {
+      control = '<select id="' + id + '" name="' + f.name + '"' + req + extra + '>' +
+        (f.empty !== undefined ? '<option value="">' + U.esc(f.empty) + '</option>' : '') +
+        U.options(f.options || [], val) + '</select>';
+    } else {
+      const type = f.type || 'text';
+      const num = (f.min !== undefined ? ' min="' + f.min + '"' : '') +
+        (f.max !== undefined ? ' max="' + f.max + '"' : '') +
+        (f.step !== undefined ? ' step="' + f.step + '"' : '');
+      const mode = type === 'tel' ? ' inputmode="tel"' : (type === 'number' ? ' inputmode="decimal"' : '');
+      control = '<input id="' + id + '" name="' + f.name + '" type="' + type + '" value="' + U.esc(val) + '"' +
+        ph + req + num + mode + extra + '>';
+    }
+
+    return '<div class="field' + (f.full ? ' full' : '') + (f.half ? ' half' : '') + '">' +
+      '<label for="' + id + '">' + U.esc(f.label) + (f.required ? ' <span class="req" aria-hidden="true">*</span>' : '') + '</label>' +
+      control +
+      (f.hint ? '<small class="hint">' + U.esc(f.hint) + '</small>' : '') +
+      '<small class="error-msg">' + (f.type === 'email' ? 'Ingresá un email válido' : 'Este dato es obligatorio') + '</small>' +
+    '</div>';
+  };
+
+  UI.fieldset = function (title, fields, iconName) {
+    return '<fieldset class="form-section"><legend>' + (iconName ? U.icon(iconName) : '') + U.esc(title) + '</legend>' +
+      '<div class="form-grid">' + fields.map(UI.field).join('') + '</div></fieldset>';
+  };
+
+  /* ---------- Bloques reutilizables ---------- */
+  UI.empty = function (iconName, title, text, actionHtml) {
+    return '<div class="empty">' +
+      '<div class="empty-icon">' + U.icon(iconName) + '</div>' +
+      '<h3>' + U.esc(title) + '</h3>' +
+      (text ? '<p>' + U.esc(text) + '</p>' : '') +
+      (actionHtml || '') +
+    '</div>';
+  };
+
+  UI.estadoBadge = function (estado) {
+    return '<span class="badge estado-' + U.esc(estado) + '">' + U.esc(KF.Store.estadoLabel(estado)) + '</span>';
+  };
+
+  /* Selector de paciente con búsqueda (datalist accesible) */
+  UI.pacienteSelect = function (selectedId, name) {
+    const pacientes = KF.Store.pacientes();
+    return '<div class="field full">' +
+      '<label for="f_' + (name || 'pacienteId') + '">Paciente <span class="req" aria-hidden="true">*</span></label>' +
+      '<select id="f_' + (name || 'pacienteId') + '" name="' + (name || 'pacienteId') + '" required>' +
+        '<option value="">Elegí un paciente…</option>' +
+        pacientes.map(function (p) {
+          return '<option value="' + U.esc(p.id) + '"' + (p.id === selectedId ? ' selected' : '') + '>' +
+            U.esc(U.fullName(p)) + (p.dni ? ' — DNI ' + U.esc(p.dni) : '') + '</option>';
+        }).join('') +
+      '</select>' +
+      '<small class="error-msg">Elegí un paciente</small>' +
+    '</div>';
+  };
+
+  KF.UI = UI;
+})(window.KF);

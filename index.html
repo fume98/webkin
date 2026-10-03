@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Consultorio Kinesiología</title>
+  <meta name="description" content="Fichas de pacientes, historia clínica, turnos y pagos para profesionales de Kinesiología y Fisiatría.">
+  <meta name="theme-color" content="#2f6f6a">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="img/icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="img/icono.svg">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700;6..12,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+
+  <div class="layout">
+    <aside class="sidebar no-print">
+      <div class="brand">
+        <span class="brand-icon" id="brand-icon"></span>
+        <div class="brand-text">
+          <strong id="brand-name">Mi Consultorio</strong>
+          <small id="brand-sub">Kinesiología y Fisiatría</small>
+        </div>
+        <button class="btn-icon" id="btn-lock" aria-label="Bloquear con clave" title="Bloquear con clave"></button>
+      </div>
+      <nav id="side-nav" class="side-nav" aria-label="Menú principal"></nav>
+      <p class="sidebar-foot">Los datos se guardan en este dispositivo.<br>Hacé copias de seguridad en Ajustes.</p>
+    </aside>
+
+    <main id="main" class="main" tabindex="-1"></main>
+  </div>
+
+  <nav id="bottom-nav" class="bottom-nav no-print" aria-label="Menú principal"></nav>
+
+  <div id="modal-root" class="modal-root"></div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <div id="lock-screen" class="lock-screen" hidden>
+    <div class="lock-box">
+      <div class="lock-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>
+      </div>
+      <h1>Ingresá tu clave</h1>
+      <div class="pin-dots" aria-hidden="true"></div>
+      <p class="pin-msg" role="alert"></p>
+      <div class="pin-pad"></div>
+    </div>
+  </div>
+
+  <noscript><p style="padding:2rem">Esta aplicación necesita JavaScript activado.</p></noscript>
+
+  <script src="js/utils.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/pacientes.js"></script>
+  <script src="js/agenda.js"></script>
+  <script src="js/pagos.js"></script>
+  <script src="js/inicio.js"></script>
+  <script src="js/ajustes.js"></script>
+  <script src="js/demo.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
