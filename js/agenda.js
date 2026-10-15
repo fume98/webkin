@@ -277,10 +277,10 @@
     const set = S.settings;
     const pagos = S.pagos().filter(function (x) { return x.turnoId === t.id; });
 
-    const msg = 'Hola ' + (p ? p.nombre : '') + '! Te recuerdo tu turno de kinesiología el ' +
+    const msg = 'Hola ' + (p ? p.nombre : '') + '! Te recuerdo tu turno de kinesiología en FisioCoreSalud el ' +
       U.fmtDateLong(t.fecha).toLowerCase() + ' a las ' + t.hora + ' hs' +
       (set.direccion ? ' en ' + set.direccion : '') + '. Por favor confirmá tu asistencia. ' +
-      (set.profesional ? '\n' + set.profesional : '');
+      '\n' + (set.profesional ? set.profesional + ' · ' : '') + 'FisioCoreSalud';
     const wa = p ? U.waLink(p.telefono, msg) : '';
 
     const body =

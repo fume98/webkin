@@ -70,8 +70,8 @@
 
   App.updateBrand = function () {
     const set = S.settings;
-    document.getElementById('brand-name').textContent = set.profesional || 'Mi Consultorio';
-    document.getElementById('brand-sub').textContent = set.titulo || 'Kinesiología y Fisiatría';
+    const sub = [set.profesional, set.titulo].filter(Boolean).join(' · ');
+    document.getElementById('brand-sub').textContent = sub || 'Kinesiología y Fisiatría';
   };
 
   /* ---------- PIN ---------- */
@@ -151,14 +151,19 @@
     buildNav();
     App.applyFont();
     App.updateBrand();
-    document.getElementById('brand-icon').innerHTML = U.icon('logo');
-    document.getElementById('btn-lock').innerHTML = U.icon('lock');
-    document.getElementById('btn-lock').addEventListener('click', function () {
-      if (S.settings.pinHash) App.lock();
-      else {
-        KF.UI.toast('Primero activá una clave en Ajustes.', 'error');
-        location.hash = '#/ajustes';
-      }
+    ['brand-icon', 'brand-icon-m'].forEach(function (id) {
+      document.getElementById(id).innerHTML = U.icon('logo');
+    });
+    ['btn-lock', 'btn-lock-m'].forEach(function (id) {
+      const btn = document.getElementById(id);
+      btn.innerHTML = U.icon('lock');
+      btn.addEventListener('click', function () {
+        if (S.settings.pinHash) App.lock();
+        else {
+          KF.UI.toast('Primero activá una clave en Ajustes.', 'error');
+          location.hash = '#/ajustes';
+        }
+      });
     });
     document.addEventListener('keydown', function (ev) {
       if (ev.key === 'Escape' && document.getElementById('modal-root').classList.contains('open')) KF.UI.closeModal();

@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Consultorio Kinesiología</title>
-  <meta name="description" content="Fichas de pacientes, historia clínica, turnos y pagos para profesionales de Kinesiología y Fisiatría.">
-  <meta name="theme-color" content="#2f6f6a">
+  <title>FisioCoreSalud</title>
+  <meta name="description" content="FisioCoreSalud — Fichas de pacientes, historia clínica, turnos y pagos para profesionales de Kinesiología y Fisiatría.">
+  <meta name="theme-color" content="#121616">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="img/icono.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="img/icono.svg">
@@ -18,12 +18,18 @@
 <body>
   <a class="skip-link" href="#main">Saltar al contenido</a>
 
+  <header class="mobile-top no-print">
+    <span class="brand-icon" id="brand-icon-m"></span>
+    <span class="wordmark"><span class="wm-1">Fisio</span><span class="wm-2">Core</span><span class="wm-3">Salud</span></span>
+    <button class="btn-icon" id="btn-lock-m" aria-label="Bloquear con clave" title="Bloquear con clave"></button>
+  </header>
+
   <div class="layout">
     <aside class="sidebar no-print">
       <div class="brand">
         <span class="brand-icon" id="brand-icon"></span>
         <div class="brand-text">
-          <strong id="brand-name">Mi Consultorio</strong>
+          <span class="wordmark"><span class="wm-1">Fisio</span><span class="wm-2">Core</span><span class="wm-3">Salud</span></span>
           <small id="brand-sub">Kinesiología y Fisiatría</small>
         </div>
         <button class="btn-icon" id="btn-lock" aria-label="Bloquear con clave" title="Bloquear con clave"></button>
@@ -45,6 +51,7 @@
       <div class="lock-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>
       </div>
+      <p class="lock-brand"><span class="wordmark on-light"><span class="wm-1">Fisio</span><span class="wm-2">Core</span><span class="wm-3">Salud</span></span></p>
       <h1>Ingresá tu clave</h1>
       <div class="pin-dots" aria-hidden="true"></div>
       <p class="pin-msg" role="alert"></p>

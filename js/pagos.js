@@ -195,7 +195,8 @@
     const set = S.settings;
     const html =
       '<div class="recibo">' +
-        '<header><div><strong>' + U.esc(set.profesional || 'Consultorio de Kinesiología') + '</strong><br>' +
+        '<header><div><strong class="rec-brand">FisioCoreSalud</strong><br>' +
+          (set.profesional ? U.esc(set.profesional) + '<br>' : '') +
           U.esc(set.titulo || '') + (set.matricula ? ' · M.P. ' + U.esc(set.matricula) : '') + '<br>' +
           U.esc([set.direccion, set.telefono].filter(Boolean).join(' · ')) + '</div>' +
           '<div class="rec-title">RECIBO<br><small>' + U.fmtDate(p.fecha) + '</small></div></header>' +
