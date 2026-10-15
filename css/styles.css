@@ -17,8 +17,8 @@
   --olive-soft: #eef1dc;
   --accent: var(--olive);
   /* Negro */
-  --black: #121616;
-  --black-2: #1d2322;
+  --black: #000000;
+  --black-2: #121616;
 
   --bg: #f5f7f7;
   --surface: #ffffff;
@@ -105,15 +105,14 @@ strong { font-weight: 700; }
   padding: 1.25rem 1rem;
 }
 
-.brand { display: flex; align-items: center; gap: .7rem; padding: 0 .35rem 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, .12); margin-bottom: 1rem; }
-.brand-icon {
-  width: 2.6rem; height: 2.6rem; border-radius: 12px; display: grid; place-items: center;
-  background: var(--primary); color: #fff; flex-shrink: 0;
-  box-shadow: inset 0 -4px 0 var(--olive);
+.brand {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: .5rem; text-align: center;
+  padding: .25rem .35rem 1.1rem; border-bottom: 1px solid rgba(255, 255, 255, .14); margin-bottom: 1rem;
 }
-.brand-icon .icon { width: 1.6rem; height: 1.6rem; }
-.brand-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.brand-text small { color: rgba(255, 255, 255, .62); font-size: .78rem; line-height: 1.3; overflow-wrap: anywhere; }
+/* El logo tiene fondo negro: "lighten" lo funde con el fondo oscuro */
+.brand-logo { display: block; width: 150px; height: auto; mix-blend-mode: lighten; }
+.brand small { color: rgba(255, 255, 255, .62); font-size: .78rem; line-height: 1.3; overflow-wrap: anywhere; }
+.brand .btn-icon { position: absolute; top: -.35rem; right: -.35rem; }
 .sidebar .btn-icon { color: rgba(255, 255, 255, .7); }
 .sidebar .btn-icon:hover { background: rgba(255, 255, 255, .1); color: #fff; }
 
@@ -522,9 +521,11 @@ strong { font-weight: 700; }
 
 /* Recibo */
 .recibo { border: 1.5px solid var(--border-strong); border-radius: var(--radius-sm); padding: 1.4rem; background: #fff; }
-.recibo header { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1rem; font-size: .92rem; }
+.recibo header { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1rem; font-size: .92rem; }
+.rec-logo { width: 72px; height: auto; border-radius: 10px; background: #000; flex-shrink: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.rec-info { flex: 1 1 11rem; min-width: 0; }
 .rec-brand { font-size: 1.15rem; color: var(--primary-dark); }
-.rec-title { text-align: right; font-weight: 800; font-size: 1.3rem; letter-spacing: .08em; color: var(--primary-dark); }
+.rec-title { margin-left: auto; text-align: right; font-weight: 800; font-size: 1.3rem; letter-spacing: .08em; color: var(--primary-dark); }
 .rec-title small { font-size: .85rem; letter-spacing: 0; color: var(--text-2); }
 .firma { margin: 3rem 0 .5rem auto; width: 220px; border-top: 1px solid var(--text-2); text-align: center; padding-top: .3rem; font-size: .85rem; color: var(--muted); }
 
@@ -607,25 +608,25 @@ strong { font-weight: 700; }
 .empty p { max-width: 420px; margin: 0 auto 1rem; }
 
 /* ---------------- Pantalla de bloqueo ---------------- */
-.lock-screen { position: fixed; inset: 0; z-index: 90; background: var(--bg); display: grid; place-items: center; padding: 1rem; }
+.lock-screen { position: fixed; inset: 0; z-index: 90; background: var(--black); color: #fff; display: grid; place-items: center; padding: 1rem; overflow-y: auto; }
 .lock-screen[hidden] { display: none; }
 .lock-box { text-align: center; width: 100%; max-width: 340px; }
-.lock-icon { width: 4.5rem; height: 4.5rem; margin: 0 auto 1rem; border-radius: 50%; background: var(--primary); color: #fff; display: grid; place-items: center; }
-.lock-icon svg { width: 2.2rem; height: 2.2rem; }
-.lock-box h1 { font-size: 1.4rem; margin-bottom: 1.2rem; }
+.lock-logo { display: block; width: min(190px, 50vw); height: auto; margin: 0 auto 1rem; mix-blend-mode: lighten; }
+.lock-box h1 { font-size: 1.3rem; margin-bottom: 1.1rem; }
 .pin-dots { display: flex; justify-content: center; gap: .8rem; min-height: 1.1rem; }
-.pin-dots i { width: 1rem; height: 1rem; border-radius: 50%; border: 2px solid var(--primary); }
-.pin-dots i.on { background: var(--primary); }
+.pin-dots i { width: 1rem; height: 1rem; border-radius: 50%; border: 2px solid var(--primary-bright); }
+.pin-dots i.on { background: var(--primary-bright); }
 .pin-dots.shake { animation: shake .35s; }
 @keyframes shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
-.pin-msg { min-height: 1.6rem; color: var(--danger); font-weight: 700; margin: .7rem 0; }
+.pin-msg { min-height: 1.6rem; color: #ff8a80; font-weight: 700; margin: .7rem 0; }
 .pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8rem; }
 .pin-pad button {
-  height: 4.2rem; border-radius: 50%; border: 1.5px solid var(--border-strong); background: var(--surface);
-  font: inherit; font-size: 1.6rem; font-weight: 700; color: var(--text); cursor: pointer; display: grid; place-items: center;
+  height: 4.2rem; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, .22); background: var(--black-2);
+  font: inherit; font-size: 1.6rem; font-weight: 700; color: #fff; cursor: pointer; display: grid; place-items: center;
   max-width: 4.2rem; width: 100%; justify-self: center;
 }
-.pin-pad button:active { background: var(--primary-soft); }
+.pin-pad button:hover { border-color: var(--primary-bright); }
+.pin-pad button:active { background: var(--primary); }
 
 /* =========================================================
    Responsivo
@@ -663,8 +664,7 @@ strong { font-weight: 700; }
     padding: calc(.55rem + env(safe-area-inset-top)) 1rem .55rem;
     border-bottom: 3px solid var(--primary);
   }
-  .mobile-top .brand-icon { width: 2.2rem; height: 2.2rem; border-radius: 10px; }
-  .mobile-top .brand-icon .icon { width: 1.35rem; height: 1.35rem; }
+  .mobile-top .brand-symbol { width: 2.6rem; height: 2.6rem; mix-blend-mode: lighten; }
   .mobile-top .wordmark { flex: 1; }
   .mobile-top .btn-icon { color: rgba(255, 255, 255, .75); }
 
@@ -774,7 +774,3 @@ strong { font-weight: 700; }
   body.printing-modal .modal-body { overflow: visible; padding: 0; }
   body:not(.printing-modal) .modal-root { display: none; }
 }
-
-/* Marca en la pantalla de bloqueo */
-.lock-brand { margin: 0 0 .4rem; }
-.lock-brand .wordmark { font-size: 1.5rem; }

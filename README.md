@@ -68,4 +68,6 @@ js/pagos.js           Pagos y recibos
 js/ajustes.js         Configuración y copias de seguridad
 js/demo.js            Datos de ejemplo
 js/app.js             Navegación y clave PIN
+img/logo.webp         Logo de FisioCoreSalud
+img/simbolo-*.png     Ícono de la app (favicon y celular)
 ```

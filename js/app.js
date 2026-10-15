@@ -151,9 +151,6 @@
     buildNav();
     App.applyFont();
     App.updateBrand();
-    ['brand-icon', 'brand-icon-m'].forEach(function (id) {
-      document.getElementById(id).innerHTML = U.icon('logo');
-    });
     ['btn-lock', 'btn-lock-m'].forEach(function (id) {
       const btn = document.getElementById(id);
       btn.innerHTML = U.icon('lock');
