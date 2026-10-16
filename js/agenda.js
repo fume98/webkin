@@ -277,10 +277,10 @@
     const set = S.settings;
     const pagos = S.pagos().filter(function (x) { return x.turnoId === t.id; });
 
-    const msg = 'Hola ' + (p ? p.nombre : '') + '! Te recuerdo tu turno de kinesiología en FisioCoreSalud el ' +
+    const msg = 'Hola ' + (p ? p.nombre : '') + '! Te recuerdo tu turno en FisioCoreSalud - Quiropraxia Cuerpo Vital el ' +
       U.fmtDateLong(t.fecha).toLowerCase() + ' a las ' + t.hora + ' hs' +
       (set.direccion ? ' en ' + set.direccion : '') + '. Por favor confirmá tu asistencia. ' +
-      '\n' + (set.profesional ? set.profesional + ' · ' : '') + 'FisioCoreSalud';
+      '\n' + (set.profesional ? set.profesional + ' · ' : '') + 'FisioCoreSalud - Quiropraxia Cuerpo Vital';
     const wa = p ? U.waLink(p.telefono, msg) : '';
 
     const body =

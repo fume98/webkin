@@ -1,7 +1,7 @@
 {
-  "name": "FisioCoreSalud",
+  "name": "FisioCoreSalud · Quiropraxia Cuerpo Vital",
   "short_name": "FisioCoreSalud",
-  "description": "FisioCoreSalud — Fichas de pacientes, historia clínica, turnos y pagos.",
+  "description": "FisioCoreSalud · Quiropraxia Cuerpo Vital — Fichas de pacientes, historia clínica, turnos y pagos.",
   "lang": "es-AR",
   "start_url": "./index.html",
   "scope": "./",

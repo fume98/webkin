@@ -1,6 +1,6 @@
-# FisioCoreSalud
+# FisioCoreSalud · Quiropraxia Cuerpo Vital
 
-Aplicación web del consultorio **FisioCoreSalud** para profesionales de **Kinesiología y Fisiatría**: fichas de pacientes, historia clínica sesión por sesión, agenda de turnos y registro de pagos.
+Aplicación web del consultorio **FisioCoreSalud · Quiropraxia Cuerpo Vital** para profesionales de **Kinesiología y Fisiatría**: fichas de pacientes, historia clínica sesión por sesión, agenda de turnos y registro de pagos.
 
 No necesita instalación ni servidor: son archivos HTML, CSS y JavaScript que funcionan en cualquier navegador (computadora, tablet o celular).
 

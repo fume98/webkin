@@ -195,7 +195,7 @@
     const set = S.settings;
     const html =
       '<div class="recibo">' +
-        '<header><img class="rec-logo" src="img/logo.webp" alt="FisioCoreSalud"><div class="rec-info"><strong class="rec-brand">FisioCoreSalud</strong><br>' +
+        '<header><img class="rec-logo" src="img/logo.webp" alt="FisioCoreSalud · Quiropraxia Cuerpo Vital"><div class="rec-info"><strong class="rec-brand">FisioCoreSalud</strong><br><span class="rec-tag">Quiropraxia · Cuerpo Vital</span><br>' +
           (set.profesional ? U.esc(set.profesional) + '<br>' : '') +
           U.esc(set.titulo || '') + (set.matricula ? ' · M.P. ' + U.esc(set.matricula) : '') + '<br>' +
           U.esc([set.direccion, set.telefono].filter(Boolean).join(' · ')) + '</div>' +
