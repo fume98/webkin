@@ -128,7 +128,8 @@
    * f: { name, label, type, value, required, placeholder, options, hint, full, rows, min, max, step, attrs }
    */
   UI.field = function (f) {
-    const id = 'f_' + f.name;
+    /* idPrefix evita ids repetidos cuando la página de fondo tiene campos con el mismo nombre */
+    const id = (f.idPrefix || 'f_') + f.name;
     const req = f.required ? ' required' : '';
     const val = f.value === undefined || f.value === null ? '' : f.value;
     const ph = f.placeholder ? ' placeholder="' + U.esc(f.placeholder) + '"' : '';
@@ -193,6 +194,58 @@
       '</select>' +
       '<small class="error-msg">Elegí un paciente</small>' +
     '</div>';
+  };
+
+  /* ---------- Profesionales ---------- */
+  UI.hayVariosProfesionales = function () {
+    return KF.Store.profesionales().length > 1;
+  };
+
+  /* Etiqueta con el color y el nombre del profesional */
+  UI.profTag = function (profesionalId, extraClass) {
+    const p = KF.Store.profesional(profesionalId);
+    if (!p) return '';
+    return '<span class="prof-tag ' + (extraClass || '') + '" style="--prof:' + U.esc(p.color || '#4f5e5b') + '">' +
+      '<i aria-hidden="true"></i>' + U.esc(p.nombre) + '</span>';
+  };
+
+  UI.profSelect = function (selectedId, opts) {
+    const o = opts || {};
+    const name = o.name || 'profesionalId';
+    const list = KF.Store.profesionales();
+    /* Un turno viejo de una agenda desactivada conserva a su profesional */
+    const actual = KF.Store.profesional(selectedId);
+    if (actual && actual.activo === false) list.push(actual);
+    const sel = actual ? selectedId : (list[0] && list[0].id);
+    return '<div class="field' + (o.full === false ? '' : ' full') + '">' +
+      '<label for="f_' + name + '">' + U.esc(o.label || 'Profesional') + ' <span class="req" aria-hidden="true">*</span></label>' +
+      '<select id="f_' + name + '" name="' + name + '" required>' +
+        list.map(function (p) {
+          return '<option value="' + U.esc(p.id) + '"' + (p.id === sel ? ' selected' : '') + '>' +
+            U.esc(p.nombre) + (p.especialidad ? ' — ' + U.esc(p.especialidad) : '') + '</option>';
+        }).join('') +
+      '</select>' +
+      '<small class="error-msg">Elegí un profesional</small>' +
+    '</div>';
+  };
+
+  /* Fila de botones para filtrar por profesional ('' = todos) */
+  UI.profFilter = function (selectedId, allLabel) {
+    const list = KF.Store.profesionales();
+    if (list.length < 2) return '';
+    return '<div class="prof-filter" role="group" aria-label="Filtrar por profesional">' +
+      '<button type="button" data-prof="" class="' + (!selectedId ? 'active' : '') + '">' + U.esc(allLabel || 'Todos') + '</button>' +
+      list.map(function (p) {
+        return '<button type="button" data-prof="' + U.esc(p.id) + '" class="' + (p.id === selectedId ? 'active' : '') + '" ' +
+          'style="--prof:' + U.esc(p.color || '#4f5e5b') + '"><i aria-hidden="true"></i>' + U.esc(p.nombre) + '</button>';
+      }).join('') +
+    '</div>';
+  };
+
+  UI.bindProfFilter = function (box, onChange) {
+    box.querySelectorAll('.prof-filter [data-prof]').forEach(function (b) {
+      b.addEventListener('click', function () { onChange(b.dataset.prof); });
+    });
   };
 
   KF.UI = UI;

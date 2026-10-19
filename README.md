@@ -22,13 +22,21 @@ No necesita instalación ni servidor: son archivos HTML, CSS y JavaScript que fu
 - Aviso de superposición de horarios.
 - Recordatorio por WhatsApp con el mensaje ya escrito.
 
+**Varios profesionales**
+- Cada profesional del consultorio tiene su propia agenda, con un color para distinguirla, y puede tener su propio horario, duración de turno y valor de sesión.
+- La agenda se puede ver completa o filtrada por profesional, con los horarios libres de cada uno.
+- Dos profesionales pueden atender a la misma hora; la superposición se avisa solo dentro de la misma agenda.
+- Cada sesión de la historia clínica y cada pago quedan asociados a quien atendió. Los recibos salen con sus datos.
+- En Pagos se ve el total cobrado por profesional.
+- Un profesional que deja el consultorio se desactiva sin perder su historial.
+
 **Pagos**
 - Monto, fecha, forma de pago (efectivo, transferencia, Mercado Pago, débito, crédito, obra social, otro) y qué abonó (sesión individual, paquete de sesiones, evaluación, coseguro, seña, domicilio, otro), con la cantidad de sesiones que cubre.
 - Cuenta del paciente: sesiones realizadas, sesiones pagas, sesiones a favor o adeudadas y total abonado.
 - Resumen mensual por forma de pago, recibo imprimible y planilla descargable para Excel.
 
 **Ajustes**
-- Datos profesionales (nombre, matrícula, dirección), valor de la sesión, duración del turno y horario de la jornada.
+- Profesionales del consultorio (agregar, editar, desactivar), datos del consultorio y valores generales de turnos.
 - Tamaño de letra: Normal, Grande o Muy grande.
 - Clave PIN para abrir la aplicación.
 - Copia de seguridad: descargar y restaurar.

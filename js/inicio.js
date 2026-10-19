@@ -31,7 +31,10 @@
     const pendientesAyer = S.turnos().filter(function (t) {
       return t.fecha < hoy && (t.estado === 'pendiente' || t.estado === 'confirmado');
     });
-    const nombre = (set.profesional || '').trim().split(/\s+/).slice(0, 2).join(' ');
+    const varios = UI.hayVariosProfesionales();
+    const principal = S.profesionalPrincipal();
+    const sinConfigurar = !principal || principal.nombre === 'Profesional principal';
+    const nombre = varios || sinConfigurar ? '' : principal.nombre.trim().split(/\s+/).slice(0, 2).join(' ');
 
     const ahora = U.nowTime();
     let html =
@@ -54,9 +57,9 @@
         statCard('dollar', 'Cobrado en ' + U.MESES[new Date().getMonth()], U.fmtMoney(cobradoMes), '') +
       '</div>';
 
-    if (!set.profesional) {
+    if (sinConfigurar) {
       html += '<div class="notice">' + U.icon('settings') +
-        '<div><strong>Completá tus datos profesionales</strong><p>Cargá tu nombre, matrícula y el valor de la sesión para usarlos en recibos y recordatorios.</p></div>' +
+        '<div><strong>Completá tus datos profesionales</strong><p>Cargá tu nombre, matrícula y el valor de la sesión, y sumá a los demás profesionales del consultorio si los hay.</p></div>' +
         '<a class="btn btn-secondary" href="#/ajustes">Ir a Ajustes</a></div>';
     }
 
@@ -77,7 +80,8 @@
               return '<button class="turno-card estado-' + U.esc(t.estado) + (now ? ' now' : '') + '" data-turno="' + U.esc(t.id) + '">' +
                 '<span class="t-hora"><strong>' + U.esc(t.hora) + '</strong>' + (now ? '<small>Ahora</small>' : '') + '</span>' +
                 '<span class="t-info"><strong>' + U.esc(U.fullName(p)) + '</strong>' +
-                '<small>' + (n && t.estado !== 'ausente' ? 'Sesión ' + n : '') + (t.motivo ? (n ? ' · ' : '') + U.esc(t.motivo) : '') + '</small></span>' +
+                '<small>' + (n && t.estado !== 'ausente' ? 'Sesión ' + n : '') + (t.motivo ? (n ? ' · ' : '') + U.esc(t.motivo) : '') + '</small>' +
+                (varios ? UI.profTag(t.profesionalId, 'sm') : '') + '</span>' +
                 UI.estadoBadge(t.estado) +
               '</button>';
             }).join('') + '</div>'
@@ -90,7 +94,8 @@
               const p = S.paciente(t.pacienteId);
               return '<li class="row-item" data-turno="' + U.esc(t.id) + '" tabindex="0" role="button">' +
                 '<div class="row-main"><strong>' + U.esc(U.fullName(p)) + '</strong>' +
-                '<span class="muted">' + U.fmtDateLong(t.fecha) + ' · ' + U.esc(t.hora) + ' hs</span></div>' +
+                '<span class="muted">' + U.fmtDateLong(t.fecha) + ' · ' + U.esc(t.hora) + ' hs</span>' +
+                (varios ? UI.profTag(t.profesionalId, 'sm') : '') + '</div>' +
                 UI.estadoBadge(t.estado) + '</li>';
             }).join('') + '</ul>'
           : '<p class="muted">No hay turnos en los próximos días.</p>') +

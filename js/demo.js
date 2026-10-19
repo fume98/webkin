@@ -33,9 +33,18 @@
           evaluacion: 'Edema perimaleolar externo, dolor en LPAA. EVA 6/10.' }
       ].map(function (p) { return S.savePaciente(p); });
 
-      const turno = function (p, dias, hora, estado, motivo) {
-        return S.saveTurno({ pacienteId: p.id, fecha: U.addDays(hoy, dias), hora: hora,
-          duracion: Number(S.settings.duracionTurno) || 45, estado: estado, motivo: motivo || '' });
+      /* Dos agendas: la principal y un segundo profesional de ejemplo */
+      const prof1 = S.profesionalPrincipal().id;
+      const prof2 = S.saveProfesional({
+        nombre: 'Lic. Martín Sosa (ejemplo)', especialidad: 'Quiropraxia', matricula: '4321',
+        color: S.COLORES_PROF[1], horaInicio: '09:00', horaFin: '18:00', duracionTurno: 30,
+        precioSesion: precio + 3000, activo: true
+      }).id;
+
+      const turno = function (p, dias, hora, estado, motivo, prof) {
+        const profesionalId = prof || prof1;
+        return S.saveTurno({ pacienteId: p.id, profesionalId: profesionalId, fecha: U.addDays(hoy, dias), hora: hora,
+          duracion: S.configProfesional(profesionalId).duracionTurno, estado: estado, motivo: motivo || '' });
       };
 
       const t1 = turno(pacientes[0], -4, '09:00', 'asistio', 'Lumbalgia');
@@ -46,25 +55,25 @@
       turno(pacientes[1], -1, '17:00', 'ausente', 'Rehabilitación LCA');
       turno(pacientes[1], 0, '17:00', 'pendiente', 'Rehabilitación LCA');
       turno(pacientes[1], 1, '17:00', 'pendiente', 'Rehabilitación LCA');
-      turno(pacientes[2], 0, '10:30', 'pendiente', 'Evaluación inicial');
-      turno(pacientes[2], 3, '10:30', 'pendiente', 'Esguince de tobillo');
+      turno(pacientes[2], 0, '09:00', 'pendiente', 'Evaluación quiropráctica', prof2);
+      turno(pacientes[2], 3, '10:30', 'pendiente', 'Ajuste quiropráctico', prof2);
 
-      S.saveEvolucion({ pacienteId: pacientes[0].id, turnoId: t1.id, fecha: t1.fecha, sesionNro: 1, dolor: 7,
+      S.saveEvolucion({ profesionalId: prof1, pacienteId: pacientes[0].id, turnoId: t1.id, fecha: t1.fecha, sesionNro: 1, dolor: 7,
         tratamiento: 'Magnetoterapia 20 min, TENS 15 min, masoterapia paravertebral.',
         evolucion: 'Llega con mucho dolor. Se retira más aliviada.', indicaciones: 'Calor local 15 min 2 veces por día.' });
-      S.saveEvolucion({ pacienteId: pacientes[0].id, turnoId: t2.id, fecha: t2.fecha, sesionNro: 2, dolor: 5,
+      S.saveEvolucion({ profesionalId: prof1, pacienteId: pacientes[0].id, turnoId: t2.id, fecha: t2.fecha, sesionNro: 2, dolor: 5,
         tratamiento: 'TENS, movilización lumbar, ejercicios de Williams.',
         evolucion: 'Refiere mejoría, duerme mejor.' });
-      S.saveEvolucion({ pacienteId: pacientes[1].id, turnoId: t3.id, fecha: t3.fecha, sesionNro: 1, dolor: 4,
+      S.saveEvolucion({ profesionalId: prof1, pacienteId: pacientes[1].id, turnoId: t3.id, fecha: t3.fecha, sesionNro: 1, dolor: 4,
         tratamiento: 'Crioterapia, movilización patelar, isométricos de cuádriceps, bicicleta sin carga 10 min.',
         evolucion: 'Buena tolerancia. Flexión 100°.' });
 
-      S.savePago({ pacienteId: pacientes[0].id, fecha: U.addDays(hoy, -4), monto: precio * 5, sesiones: 5,
+      S.savePago({ profesionalId: prof1, pacienteId: pacientes[0].id, fecha: U.addDays(hoy, -4), monto: precio * 5, sesiones: 5,
         concepto: 'Paquete de sesiones', forma: 'Transferencia', notas: 'Paga 5 sesiones por adelantado' });
-      S.savePago({ pacienteId: pacientes[1].id, turnoId: t3.id, fecha: t3.fecha, monto: precio, sesiones: 1,
+      S.savePago({ profesionalId: prof1, pacienteId: pacientes[1].id, turnoId: t3.id, fecha: t3.fecha, monto: precio, sesiones: 1,
         concepto: 'Sesión individual', forma: 'Efectivo' });
-      S.savePago({ pacienteId: pacientes[2].id, fecha: hoy, monto: Math.round(precio * 0.3), sesiones: 0,
-        concepto: 'Coseguro / Copago', forma: 'Mercado Pago' });
+      S.savePago({ profesionalId: prof2, pacienteId: pacientes[2].id, fecha: hoy, monto: precio + 3000, sesiones: 1,
+        concepto: 'Evaluación / Primera consulta', forma: 'Mercado Pago' });
     }
   };
 })(window.KF);

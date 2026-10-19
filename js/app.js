@@ -69,9 +69,13 @@
   };
 
   App.updateBrand = function () {
-    const set = S.settings;
-    const sub = [set.profesional, set.titulo].filter(Boolean).join(' · ');
-    document.getElementById('brand-sub').textContent = sub || 'Kinesiología y Fisiatría';
+    const profs = S.profesionales();
+    let sub = 'Kinesiología y Fisiatría';
+    if (profs.length > 1) sub = profs.length + ' profesionales';
+    else if (profs[0] && profs[0].nombre !== 'Profesional principal') {
+      sub = [profs[0].nombre, profs[0].especialidad].filter(Boolean).join(' · ');
+    }
+    document.getElementById('brand-sub').textContent = sub;
   };
 
   /* ---------- PIN ---------- */

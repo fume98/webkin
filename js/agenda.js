@@ -9,11 +9,18 @@
   const A = {};
   let fechaSel = U.today();
   let vista = 'dia';
+  let profSel = ''; /* '' = todos los profesionales */
+
+  function profFiltro() {
+    if (profSel && !S.profesional(profSel)) profSel = '';
+    return profSel;
+  }
 
   A.setFecha = function (iso) { fechaSel = iso; };
 
   /* ================= Vista principal ================= */
   A.render = function (main) {
+    profFiltro();
     const semanaIni = U.startOfWeek(fechaSel);
     const titulo = vista === 'dia'
       ? U.fmtDateLong(fechaSel, true)
@@ -24,6 +31,7 @@
         '<div><h1>Agenda de turnos</h1><p class="sub">' + U.esc(titulo) + (fechaSel === U.today() && vista === 'dia' ? ' · Hoy' : '') + '</p></div>' +
         '<button class="btn btn-primary btn-lg" id="btn-nuevo-turno">' + U.icon('plus') + 'Nuevo turno</button>' +
       '</div>' +
+      UI.profFilter(profSel, 'Todas las agendas') +
       '<div class="agenda-bar">' +
         '<div class="date-nav">' +
           '<button class="btn-icon lg" data-nav="-1" aria-label="Anterior">' + U.icon('chevronLeft') + '</button>' +
@@ -40,8 +48,9 @@
       '<div id="agenda-body"></div>';
 
     main.querySelector('#btn-nuevo-turno').addEventListener('click', function () {
-      A.openForm(null, { fecha: fechaSel }, KF.App.refresh);
+      A.openForm(null, { fecha: fechaSel, profesionalId: profSel }, KF.App.refresh);
     });
+    UI.bindProfFilter(main, function (id) { profSel = id; A.render(main); });
     main.querySelectorAll('[data-nav]').forEach(function (b) {
       b.addEventListener('click', function () {
         const v = b.dataset.nav;
@@ -71,7 +80,7 @@
     for (let i = 0; i < 7; i++) {
       const f = U.addDays(ini, i);
       const d = U.parseDate(f);
-      const n = S.turnosDelDia(f).filter(function (t) { return t.estado !== 'cancelado'; }).length;
+      const n = S.turnosDelDia(f, profSel).filter(function (t) { return t.estado !== 'cancelado'; }).length;
       html += '<button data-fecha="' + f + '" class="' + (f === fechaSel ? 'sel ' : '') + (f === hoy ? 'today' : '') + '">' +
         '<span class="wd">' + U.DIAS_CORTOS[d.getDay()] + '</span>' +
         '<span class="dn">' + d.getDate() + '</span>' +
@@ -92,6 +101,7 @@
         '<strong>' + U.esc(U.fullName(p)) + '</strong>' +
         '<small>' + (n && t.estado !== 'cancelado' && t.estado !== 'ausente' ? 'Sesión ' + n + indic : '') +
           (!compact && t.motivo ? (n ? ' · ' : '') + U.esc(t.motivo) : '') + '</small>' +
+        (!profSel && UI.hayVariosProfesionales() ? UI.profTag(t.profesionalId, compact ? 'sm' : '') : '') +
       '</span>' +
       (compact ? '' : UI.estadoBadge(t.estado)) +
     '</button>';
@@ -104,41 +114,53 @@
   }
 
   function drawDay(box, fecha) {
-    const turnos = S.turnosDelDia(fecha);
+    const turnos = S.turnosDelDia(fecha, profSel);
     if (!turnos.length) {
       box.innerHTML = UI.empty('calendar', 'No hay turnos para este día', 'Podés agregar uno con el botón "Nuevo turno" o tocando un horario libre.') +
-        freeSlots(fecha, []);
+        freeSlots(fecha);
     } else {
       box.innerHTML = '<div class="day-list">' + turnos.map(function (t) { return turnoCard(t); }).join('') + '</div>' +
-        freeSlots(fecha, turnos);
+        freeSlots(fecha);
     }
     bindCards(box);
     box.querySelectorAll('[data-slot]').forEach(function (b) {
       b.addEventListener('click', function () {
-        A.openForm(null, { fecha: fecha, hora: b.dataset.slot }, KF.App.refresh);
+        A.openForm(null, { fecha: fecha, hora: b.dataset.slot, profesionalId: b.dataset.prof }, KF.App.refresh);
       });
     });
   }
 
-  /* Horarios libres según la configuración de jornada */
-  function freeSlots(fecha, turnos) {
-    const set = S.settings;
-    const dur = Number(set.duracionTurno) || 45;
-    let ini = U.timeToMin(set.horaInicio || '08:00');
-    const fin = U.timeToMin(set.horaFin || '20:00');
+  /* Horarios libres de cada profesional según su jornada */
+  function libresDe(fecha, profesionalId) {
+    const cfg = S.configProfesional(profesionalId);
+    const dur = cfg.duracionTurno;
+    let ini = U.timeToMin(cfg.horaInicio);
+    const fin = U.timeToMin(cfg.horaFin);
     const hoy = U.today();
     const ahora = U.timeToMin(U.nowTime());
     const libres = [];
     for (; ini + dur <= fin; ini += dur) {
       const h = U.minToTime(ini);
       if (fecha < hoy || (fecha === hoy && ini < ahora)) continue;
-      if (!S.turnoSuperpuesto(fecha, h, dur)) libres.push(h);
+      if (!S.turnoSuperpuesto(fecha, h, dur, null, profesionalId)) libres.push(h);
     }
-    if (!libres.length) return '';
-    return '<div class="panel slots-panel"><h3>' + U.icon('clock') + 'Horarios libres</h3>' +
-      '<div class="slots">' + libres.map(function (h) {
-        return '<button class="slot" data-slot="' + h + '">' + h + '</button>';
-      }).join('') + '</div></div>';
+    return libres;
+  }
+
+  function freeSlots(fecha) {
+    const profs = profSel ? [S.profesional(profSel)] : S.profesionales();
+    const varios = profs.length > 1;
+    const grupos = profs.map(function (p) {
+      const libres = libresDe(fecha, p.id);
+      if (!libres.length) return '';
+      return (varios ? '<div class="slots-group"><h4>' + UI.profTag(p.id) + '</h4>' : '') +
+        '<div class="slots">' + libres.map(function (h) {
+          return '<button class="slot" data-slot="' + h + '" data-prof="' + U.esc(p.id) + '" ' +
+            'aria-label="' + h + (varios ? ' con ' + U.esc(p.nombre) : '') + '">' + h + '</button>';
+        }).join('') + '</div>' + (varios ? '</div>' : '');
+    }).join('');
+    if (!grupos) return '';
+    return '<div class="panel slots-panel"><h3>' + U.icon('clock') + 'Horarios libres</h3>' + grupos + '</div>';
   }
 
   function drawWeek(box, ini) {
@@ -146,7 +168,7 @@
     for (let i = 0; i < 7; i++) {
       const f = U.addDays(ini, i);
       const d = U.parseDate(f);
-      const turnos = S.turnosDelDia(f);
+      const turnos = S.turnosDelDia(f, profSel);
       html += '<section class="week-col' + (f === U.today() ? ' today' : '') + '">' +
         '<h3><button class="linklike" data-dia="' + f + '">' + U.DIAS_CORTOS[d.getDay()] + ' ' + d.getDate() + '</button></h3>' +
         (turnos.length ? turnos.map(function (t) { return turnoCard(t, true); }).join('') : '<p class="muted small">Sin turnos</p>') +
@@ -179,18 +201,20 @@
       return;
     }
 
-    const set = S.settings;
+    const pre = Object.assign({}, preset || {});
+    if (!pre.profesionalId) pre.profesionalId = profFiltro() || S.profesionalPrincipal().id;
     const t = id ? S.turno(id) : Object.assign({
       fecha: U.today(),
       hora: '',
-      duracion: set.duracionTurno || 45,
+      duracion: S.configProfesional(pre.profesionalId).duracionTurno,
       estado: 'pendiente'
-    }, preset || {});
+    }, pre);
 
     const dias = [1, 2, 3, 4, 5, 6];
     const body =
       '<div class="form-grid">' +
         UI.pacienteSelect(t.pacienteId) +
+        UI.profSelect(t.profesionalId, { label: 'Profesional que atiende' }) +
         UI.field({ name: 'fecha', label: 'Fecha', type: 'date', value: t.fecha, required: true }) +
         UI.field({ name: 'hora', label: 'Hora', type: 'time', value: t.hora, required: true, step: 300 }) +
         UI.field({ name: 'duracion', label: 'Duración (minutos)', type: 'number', value: t.duracion, min: 5, step: 5, required: true }) +
@@ -220,6 +244,12 @@
       size: 'md',
       body: body,
       submitLabel: id ? 'Guardar cambios' : 'Dar turno',
+      onOpen: function (modal) {
+        /* Al cambiar de profesional se sugiere la duración de su turno */
+        const prof = modal.querySelector('[name=profesionalId]');
+        const dur = modal.querySelector('[name=duracion]');
+        if (!id) prof.addEventListener('change', function () { dur.value = S.configProfesional(prof.value).duracionTurno; });
+      },
       onSubmit: function (form) {
         const d = UI.formData(form);
         const repDias = Array.prototype.map.call(form.querySelectorAll('input[name=rep_dia]:checked'), function (x) { return Number(x.value); });
@@ -232,10 +262,12 @@
           return crearSerie(d, repDias, repTotal, onSaved);
         }
 
-        const choque = S.turnoSuperpuesto(d.fecha, d.hora, d.duracion, id);
+        const choque = S.turnoSuperpuesto(d.fecha, d.hora, d.duracion, id, d.profesionalId);
         if (choque) {
           const pc = S.paciente(choque.pacienteId);
-          if (!window.confirm('Ese horario se superpone con el turno de ' + U.fullName(pc) + ' a las ' + choque.hora + '. ¿Guardar igual?')) {
+          const pr = S.profesional(d.profesionalId);
+          if (!window.confirm('Ese horario se superpone con el turno de ' + U.fullName(pc) + ' a las ' + choque.hora +
+            (UI.hayVariosProfesionales() && pr ? ' en la agenda de ' + pr.nombre : '') + '. ¿Guardar igual?')) {
             return false;
           }
         }
@@ -259,7 +291,7 @@
     }
     let choques = 0;
     fechas.forEach(function (fecha) {
-      if (S.turnoSuperpuesto(fecha, base.hora, base.duracion)) choques++;
+      if (S.turnoSuperpuesto(fecha, base.hora, base.duracion, null, base.profesionalId)) choques++;
       S.saveTurno(Object.assign({}, base, { fecha: fecha }));
     });
     UI.toast('Se asignaron ' + fechas.length + ' turnos (' + U.fmtDate(fechas[0]) + ' al ' + U.fmtDate(fechas[fechas.length - 1]) + ')');
@@ -275,12 +307,14 @@
     const p = S.paciente(t.pacienteId);
     const n = S.numeroSesion(t);
     const set = S.settings;
+    const prof = S.profesional(t.profesionalId);
     const pagos = S.pagos().filter(function (x) { return x.turnoId === t.id; });
 
     const msg = 'Hola ' + (p ? p.nombre : '') + '! Te recuerdo tu turno en FisioCoreSalud - Quiropraxia Cuerpo Vital el ' +
       U.fmtDateLong(t.fecha).toLowerCase() + ' a las ' + t.hora + ' hs' +
+      (prof && UI.hayVariosProfesionales() ? ' con ' + prof.nombre : '') +
       (set.direccion ? ' en ' + set.direccion : '') + '. Por favor confirmá tu asistencia. ' +
-      '\n' + (set.profesional ? set.profesional + ' · ' : '') + 'FisioCoreSalud - Quiropraxia Cuerpo Vital';
+      '\n' + (prof ? prof.nombre + ' · ' : '') + 'FisioCoreSalud - Quiropraxia Cuerpo Vital';
     const wa = p ? U.waLink(p.telefono, msg) : '';
 
     const body =
@@ -291,6 +325,8 @@
           '<span class="muted">' + (p && p.telefono ? U.esc(p.telefono) : 'Sin teléfono') + '</span></div>' +
         '</div>' +
         '<dl class="info-grid">' +
+          '<div class="info full"><dt>Profesional</dt><dd>' + (UI.profTag(t.profesionalId) || '—') +
+            (prof && prof.especialidad ? ' <span class="muted">' + U.esc(prof.especialidad) + '</span>' : '') + '</dd></div>' +
           '<div class="info"><dt>Fecha</dt><dd>' + U.fmtDateLong(t.fecha, true) + '</dd></div>' +
           '<div class="info"><dt>Horario</dt><dd>' + U.esc(t.hora) + ' a ' + U.minToTime(U.timeToMin(t.hora) + Number(t.duracion || 0)) + ' hs</dd></div>' +
           '<div class="info"><dt>Sesión</dt><dd>' + (n && t.estado !== 'cancelado' && t.estado !== 'ausente' ? 'N° ' + n + (p && p.sesionesIndicadas ? ' de ' + U.esc(p.sesionesIndicadas) : '') : '—') + '</dd></div>' +
@@ -334,7 +370,7 @@
           const yaTiene = S.evolucionesDePaciente(p.id).some(function (e) { return e.turnoId === t.id; });
           if (!yaTiene) {
             KF.Pacientes.openEvolucion(p.id, null, onChange, {
-              fecha: t.fecha, turnoId: t.id, sesionNro: S.numeroSesion(S.turno(t.id)) || ''
+              fecha: t.fecha, turnoId: t.id, profesionalId: t.profesionalId, sesionNro: S.numeroSesion(S.turno(t.id)) || ''
             });
           }
         }
@@ -347,11 +383,11 @@
     };
     q('evolucion', function () {
       UI.closeModal();
-      KF.Pacientes.openEvolucion(t.pacienteId, null, onChange, { fecha: t.fecha, turnoId: t.id, sesionNro: n || '' });
+      KF.Pacientes.openEvolucion(t.pacienteId, null, onChange, { fecha: t.fecha, turnoId: t.id, profesionalId: t.profesionalId, sesionNro: n || '' });
     });
     q('pago', function () {
       UI.closeModal();
-      KF.Pagos.openForm(null, { pacienteId: t.pacienteId, turnoId: t.id, fecha: t.fecha }, onChange);
+      KF.Pagos.openForm(null, { pacienteId: t.pacienteId, turnoId: t.id, fecha: t.fecha, profesionalId: t.profesionalId }, onChange);
     });
     q('ficha', function () { UI.closeModal(); });
     q('editar', function () { UI.closeModal(); A.openForm(t.id, null, onChange); });

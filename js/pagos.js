@@ -9,22 +9,42 @@
   const PG = {};
   let mesSel = U.today().slice(0, 7);
   let formaSel = '';
+  let profSel = '';
+
+  function breakdown(titulo, totales, total, etiqueta) {
+    const keys = Object.keys(totales).sort(function (a, b) { return totales[b] - totales[a]; });
+    if (!keys.length) return '';
+    return '<div class="bd-group">' + (titulo ? '<h4>' + U.esc(titulo) + '</h4>' : '') + keys.map(function (k) {
+      const pct = total ? Math.round(totales[k] * 100 / total) : 0;
+      return '<div class="bd-row"><span>' + etiqueta(k) + '</span>' +
+        '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
+        '<strong>' + U.fmtMoney(totales[k]) + '</strong></div>';
+    }).join('') + '</div>';
+  }
 
   /* ================= Vista principal ================= */
   PG.render = function (main) {
+    if (profSel && !S.profesional(profSel)) profSel = '';
+    const varios = UI.hayVariosProfesionales();
     const pagos = S.pagos().filter(function (p) {
-      return p.fecha && p.fecha.slice(0, 7) === mesSel && (!formaSel || p.forma === formaSel);
+      return p.fecha && p.fecha.slice(0, 7) === mesSel && (!formaSel || p.forma === formaSel) &&
+        (!profSel || p.profesionalId === profSel);
     });
     const total = pagos.reduce(function (s, p) { return s + (Number(p.monto) || 0); }, 0);
     const porForma = {};
-    pagos.forEach(function (p) { porForma[p.forma] = (porForma[p.forma] || 0) + (Number(p.monto) || 0); });
-    const formas = Object.keys(porForma).sort(function (a, b) { return porForma[b] - porForma[a]; });
+    const porProf = {};
+    pagos.forEach(function (p) {
+      porForma[p.forma] = (porForma[p.forma] || 0) + (Number(p.monto) || 0);
+      porProf[p.profesionalId] = (porProf[p.profesionalId] || 0) + (Number(p.monto) || 0);
+    });
+    const mostrarProf = varios && !profSel;
 
     main.innerHTML =
       '<div class="page-head">' +
         '<div><h1>Pagos y cobros</h1><p class="sub">Registrá qué abonó cada paciente y de qué forma</p></div>' +
         '<button class="btn btn-primary btn-lg" id="btn-nuevo-pago">' + U.icon('plus') + 'Registrar pago</button>' +
       '</div>' +
+      UI.profFilter(profSel, 'Todos los profesionales') +
       '<div class="agenda-bar">' +
         '<div class="date-nav">' +
           '<button class="btn-icon lg" data-mes="-1" aria-label="Mes anterior">' + U.icon('chevronLeft') + '</button>' +
@@ -38,18 +58,20 @@
       '<div class="summary-row">' +
         '<div class="summary-total"><span>Total cobrado en ' + U.esc(U.fmtMonth(mesSel)) + '</span>' +
           '<strong>' + U.fmtMoney(total) + '</strong>' +
-          '<small>' + pagos.length + (pagos.length === 1 ? ' pago' : ' pagos') + '</small></div>' +
-        (formas.length ? '<div class="summary-breakdown">' + formas.map(function (f) {
-          const pct = total ? Math.round(porForma[f] * 100 / total) : 0;
-          return '<div class="bd-row"><span>' + U.esc(f) + '</span>' +
-            '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
-            '<strong>' + U.fmtMoney(porForma[f]) + '</strong></div>';
-        }).join('') + '</div>' : '') +
+          '<small>' + pagos.length + (pagos.length === 1 ? ' pago' : ' pagos') +
+            (profSel ? ' · ' + U.esc(S.profesional(profSel).nombre) : '') + '</small></div>' +
+        (pagos.length ? '<div class="summary-breakdown">' +
+          (mostrarProf ? breakdown('Por profesional', porProf, total, function (k) { return UI.profTag(k) || 'Sin asignar'; }) : '') +
+          breakdown(mostrarProf ? 'Por forma de pago' : '', porForma, total, U.esc) +
+        '</div>' : '') +
       '</div>' +
       '<div id="pagos-lista"></div>' +
       '<div class="toolbar end"><button class="btn btn-ghost" id="exp-csv">' + U.icon('download') + 'Descargar planilla del mes (Excel)</button></div>';
 
-    main.querySelector('#btn-nuevo-pago').addEventListener('click', function () { PG.openForm(null, null, KF.App.refresh); });
+    main.querySelector('#btn-nuevo-pago').addEventListener('click', function () {
+      PG.openForm(null, profSel ? { profesionalId: profSel } : null, KF.App.refresh);
+    });
+    UI.bindProfFilter(main, function (id) { profSel = id; PG.render(main); });
     main.querySelectorAll('[data-mes]').forEach(function (b) {
       b.addEventListener('click', function () {
         const [y, m] = mesSel.split('-').map(Number);
@@ -78,8 +100,9 @@
 
   /* Tabla de pagos reutilizable (también en la ficha del paciente) */
   PG.table = function (pagos, conPaciente) {
+    const varios = UI.hayVariosProfesionales();
     return '<div class="table-wrap"><table class="table">' +
-      '<thead><tr><th>Fecha</th>' + (conPaciente ? '<th>Paciente</th>' : '') +
+      '<thead><tr><th>Fecha</th>' + (conPaciente ? '<th>Paciente</th>' : '') + (varios ? '<th>Profesional</th>' : '') +
       '<th>Qué abonó</th><th>Forma de pago</th><th class="num">Monto</th><th class="no-print"><span class="sr-only">Acciones</span></th></tr></thead>' +
       '<tbody>' + pagos.map(function (p) {
         const pac = S.paciente(p.pacienteId);
@@ -88,6 +111,7 @@
         return '<tr>' +
           '<td data-label="Fecha">' + U.fmtDate(p.fecha) + '</td>' +
           (conPaciente ? '<td data-label="Paciente"><a href="#/paciente/' + U.esc(p.pacienteId) + '">' + U.esc(U.fullName(pac)) + '</a></td>' : '') +
+          (varios ? '<td data-label="Profesional">' + UI.profTag(p.profesionalId, 'sm') + '</td>' : '') +
           '<td data-label="Qué abonó">' + U.esc(det) + (p.notas ? '<br><small class="muted">' + U.esc(p.notas) + '</small>' : '') + '</td>' +
           '<td data-label="Forma de pago"><span class="badge pay">' + U.esc(p.forma) + '</span></td>' +
           '<td data-label="Monto" class="num"><strong>' + U.fmtMoney(p.monto) + '</strong></td>' +
@@ -125,18 +149,22 @@
       UI.toast('Primero cargá un paciente.', 'error');
       return;
     }
-    const set = S.settings;
+    const pre = Object.assign({}, preset || {});
+    if (!pre.profesionalId) {
+      pre.profesionalId = pre.pacienteId ? KF.Pacientes.profesionalHabitual(pre.pacienteId) : S.profesionalPrincipal().id;
+    }
     const p = id ? S.pago(id) : Object.assign({
       fecha: U.today(),
       forma: 'Efectivo',
       concepto: 'Sesión individual',
       sesiones: 1,
-      monto: set.precioSesion || ''
-    }, preset || {});
+      monto: S.configProfesional(pre.profesionalId).precioSesion || ''
+    }, pre);
 
     const body =
       '<div class="form-grid">' +
         UI.pacienteSelect(p.pacienteId) +
+        UI.profSelect(p.profesionalId, { label: 'Profesional (a quién corresponde el cobro)' }) +
         UI.field({ name: 'fecha', label: 'Fecha de pago', type: 'date', value: p.fecha, required: true }) +
         UI.field({ name: 'monto', label: 'Monto abonado ($)', type: 'number', value: p.monto, min: 0, step: 'any', required: true }) +
         UI.field({ name: 'concepto', label: '¿Qué abonó?', type: 'select', value: p.concepto, options: S.CONCEPTOS }) +
@@ -163,7 +191,15 @@
         const concepto = modal.querySelector('[name=concepto]');
         const sesiones = modal.querySelector('[name=sesiones]');
         const monto = modal.querySelector('[name=monto]');
-        const precio = Number(set.precioSesion) || 0;
+        const prof = modal.querySelector('[name=profesionalId]');
+        let precio = S.configProfesional(prof.value).precioSesion;
+        /* Cada profesional puede tener su propio valor de sesión */
+        prof.addEventListener('change', function () {
+          precio = S.configProfesional(prof.value).precioSesion;
+          if (id || !precio) return;
+          if (concepto.value === 'Sesión individual') monto.value = precio;
+          else if (concepto.value === 'Paquete de sesiones') monto.value = precio * (Number(sesiones.value) || 0);
+        });
         /* Sugerencias automáticas según el concepto elegido */
         concepto.addEventListener('change', function () {
           if (concepto.value === 'Sesión individual') { sesiones.value = 1; if (precio) monto.value = precio; }
@@ -193,11 +229,12 @@
     const p = S.pago(id);
     const pac = S.paciente(p.pacienteId);
     const set = S.settings;
+    const prof = S.profesional(p.profesionalId) || {};
     const html =
       '<div class="recibo">' +
         '<header><img class="rec-logo" src="img/logo.webp" alt="FisioCoreSalud · Quiropraxia Cuerpo Vital"><div class="rec-info"><strong class="rec-brand">FisioCoreSalud</strong><br><span class="rec-tag">Quiropraxia · Cuerpo Vital</span><br>' +
-          (set.profesional ? U.esc(set.profesional) + '<br>' : '') +
-          U.esc(set.titulo || '') + (set.matricula ? ' · M.P. ' + U.esc(set.matricula) : '') + '<br>' +
+          (prof.nombre ? U.esc(prof.nombre) + '<br>' : '') +
+          U.esc(prof.especialidad || '') + (prof.matricula ? ' · M.P. ' + U.esc(prof.matricula) : '') + '<br>' +
           U.esc([set.direccion, set.telefono].filter(Boolean).join(' · ')) + '</div>' +
           '<div class="rec-title">RECIBO<br><small>' + U.fmtDate(p.fecha) + '</small></div></header>' +
         '<p>Recibí de <strong>' + U.esc(pac ? (pac.nombre + ' ' + pac.apellido) : '') + '</strong>' +
@@ -223,10 +260,11 @@
   }
 
   function exportCSV(pagos) {
-    const rows = [['Fecha', 'Apellido', 'Nombre', 'DNI', 'Qué abonó', 'Sesiones', 'Forma de pago', 'Monto', 'Observaciones']];
+    const rows = [['Fecha', 'Profesional', 'Apellido', 'Nombre', 'DNI', 'Qué abonó', 'Sesiones', 'Forma de pago', 'Monto', 'Observaciones']];
     pagos.slice().reverse().forEach(function (p) {
       const pac = S.paciente(p.pacienteId) || {};
-      rows.push([U.fmtDate(p.fecha), pac.apellido || '', pac.nombre || '', pac.dni || '', p.concepto || '',
+      const prof = S.profesional(p.profesionalId) || {};
+      rows.push([U.fmtDate(p.fecha), prof.nombre || '', pac.apellido || '', pac.nombre || '', pac.dni || '', p.concepto || '',
         p.sesiones || 0, p.forma || '', String(p.monto || 0).replace('.', ','), p.notas || '']);
     });
     const csv = '﻿' + rows.map(function (r) {

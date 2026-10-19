@@ -15,16 +15,23 @@
     main.innerHTML =
       '<div class="page-head"><div><h1>Ajustes</h1><p class="sub">Configurá la aplicación a tu medida</p></div></div>' +
 
-      '<form id="form-prof" class="panel" novalidate>' +
-        '<h2>' + U.icon('user') + 'Datos profesionales</h2>' +
-        '<div class="form-grid">' +
-          UI.field({ name: 'profesional', label: 'Nombre y apellido', value: set.profesional, placeholder: 'Ej: Lic. María Gómez' }) +
-          UI.field({ name: 'titulo', label: 'Título', value: set.titulo }) +
-          UI.field({ name: 'matricula', label: 'Matrícula profesional', value: set.matricula }) +
-          UI.field({ name: 'telefono', label: 'Teléfono del consultorio', type: 'tel', value: set.telefono }) +
-          UI.field({ name: 'direccion', label: 'Dirección del consultorio', value: set.direccion, full: true }) +
+      '<section class="panel" id="panel-profs">' +
+        '<div class="panel-head">' +
+          '<h2>' + U.icon('users') + 'Profesionales y agendas</h2>' +
+          '<button type="button" class="btn btn-primary" id="prof-nuevo">' + U.icon('plus') + 'Agregar profesional</button>' +
         '</div>' +
-        '<h2>' + U.icon('clock') + 'Turnos y valores</h2>' +
+        '<p class="muted">Cada profesional tiene su propia agenda de turnos. Podés darle un horario, una duración de turno y un valor de sesión distintos.</p>' +
+        listaProfesionales() +
+      '</section>' +
+
+      '<form id="form-prof" class="panel" novalidate>' +
+        '<h2>' + U.icon('home') + 'Datos del consultorio</h2>' +
+        '<div class="form-grid">' +
+          UI.field({ name: 'telefono', label: 'Teléfono del consultorio', type: 'tel', value: set.telefono }) +
+          UI.field({ name: 'direccion', label: 'Dirección del consultorio', value: set.direccion }) +
+        '</div>' +
+        '<h2>' + U.icon('clock') + 'Valores generales de turnos</h2>' +
+        '<p class="muted">Se usan para los profesionales que no tienen un valor propio.</p>' +
         '<div class="form-grid">' +
           UI.field({ name: 'precioSesion', label: 'Valor de la sesión ($)', type: 'number', value: set.precioSesion, min: 0, step: 'any',
             hint: 'Se sugiere automáticamente al registrar pagos' }) +
@@ -62,7 +69,7 @@
 
       '<section class="panel">' +
         '<h2>' + U.icon('download') + 'Copia de seguridad</h2>' +
-        '<p>Tenés <strong>' + st.pacientes + '</strong> pacientes, <strong>' + st.turnos + '</strong> turnos, ' +
+        '<p>Tenés <strong>' + st.profesionales + '</strong> ' + (st.profesionales === 1 ? 'profesional' : 'profesionales') + ', <strong>' + st.pacientes + '</strong> pacientes, <strong>' + st.turnos + '</strong> turnos, ' +
           '<strong>' + st.evoluciones + '</strong> registros de historia clínica y <strong>' + st.pagos + '</strong> pagos.</p>' +
         '<p class="muted">Los datos se guardan en este dispositivo y navegador. Descargá una copia de seguridad seguido ' +
           '(por ejemplo, una vez por semana) y guardala en un lugar seguro (pendrive, Google Drive, mail). ' +
@@ -82,6 +89,22 @@
           '<button class="btn btn-ghost danger" id="reset">' + U.icon('trash') + 'Borrar todos los datos</button>' +
         '</div>' +
       '</section>';
+
+    main.querySelector('#prof-nuevo').addEventListener('click', function () { AJ.openProfesional(null, function () { AJ.render(main); }); });
+    main.querySelectorAll('[data-prof-edit]').forEach(function (b) {
+      b.addEventListener('click', function () { AJ.openProfesional(b.dataset.profEdit, function () { AJ.render(main); }); });
+    });
+    main.querySelectorAll('[data-prof-del]').forEach(function (b) {
+      b.addEventListener('click', function () { quitarProfesional(b.dataset.profDel, function () { AJ.render(main); }); });
+    });
+    main.querySelectorAll('[data-prof-act]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        S.saveProfesional({ id: b.dataset.profAct, activo: true });
+        UI.toast('Agenda reactivada');
+        KF.App.updateBrand();
+        AJ.render(main);
+      });
+    });
 
     main.querySelector('#form-prof').addEventListener('submit', function (ev) {
       ev.preventDefault();
@@ -154,7 +177,7 @@
     main.querySelector('#demo').addEventListener('click', function () {
       UI.confirm({
         title: 'Datos de ejemplo',
-        message: 'Se agregarán algunos pacientes, turnos y pagos ficticios para que pruebes la aplicación. Después podés borrarlos.',
+        message: 'Se agregarán algunos pacientes, un segundo profesional, turnos y pagos ficticios para que pruebes la aplicación. Después podés borrarlos.',
         confirmLabel: 'Agregar ejemplos',
         danger: false,
         onConfirm: function () { KF.Demo.load(); UI.toast('Datos de ejemplo cargados'); location.hash = '#/inicio'; }
@@ -184,6 +207,131 @@
       });
     });
   };
+
+  /* ================= Profesionales ================= */
+  /* "Lic. María Gómez" -> "MG" */
+  function iniciales(nombre) {
+    const partes = String(nombre || '').replace(/^(lic|dr|dra|klgo|klga|prof)\.?\s+/i, '').trim().split(/\s+/);
+    return ((partes[0] || '').charAt(0) + (partes.length > 1 ? partes[partes.length - 1].charAt(0) : '')).toUpperCase() || '?';
+  }
+
+  function listaProfesionales() {
+    const todos = S.profesionales(true);
+    return '<ul class="prof-list">' + todos.map(function (p) {
+      const cfg = S.configProfesional(p.id);
+      const uso = S.usoProfesional(p.id);
+      const inactivo = p.activo === false;
+      return '<li class="prof-item' + (inactivo ? ' inactive' : '') + '" style="--prof:' + U.esc(p.color || '#4f5e5b') + '">' +
+        '<span class="prof-dot" aria-hidden="true">' + U.esc(iniciales(p.nombre)) + '</span>' +
+        '<div class="prof-info">' +
+          '<strong>' + U.esc(p.nombre) + (inactivo ? ' <span class="badge">Agenda desactivada</span>' : '') + '</strong>' +
+          '<span class="muted">' + [U.esc(p.especialidad || ''), p.matricula ? 'M.P. ' + U.esc(p.matricula) : ''].filter(Boolean).join(' · ') + '</span>' +
+          '<small class="muted">' + U.esc(cfg.horaInicio) + ' a ' + U.esc(cfg.horaFin) + ' hs · turnos de ' + cfg.duracionTurno + ' min' +
+            (cfg.precioSesion ? ' · sesión ' + U.fmtMoney(cfg.precioSesion) : '') + ' · ' + uso.turnos + (uso.turnos === 1 ? ' turno' : ' turnos') + '</small>' +
+        '</div>' +
+        '<div class="prof-actions">' +
+          '<button type="button" class="btn btn-sm btn-secondary" data-prof-edit="' + U.esc(p.id) + '">' + U.icon('edit') + 'Editar</button>' +
+          (inactivo
+            ? '<button type="button" class="btn btn-sm btn-ghost" data-prof-act="' + U.esc(p.id) + '">Reactivar</button>'
+            : (S.profesionales().length > 1
+              ? '<button type="button" class="btn btn-sm btn-ghost danger" data-prof-del="' + U.esc(p.id) + '">' + U.icon('trash') + 'Quitar</button>'
+              : '')) +
+        '</div>' +
+      '</li>';
+    }).join('') + '</ul>';
+  }
+
+  AJ.openProfesional = function (id, onSaved) {
+    const usados = S.profesionales(true).map(function (p) { return p.color; });
+    const libre = S.COLORES_PROF.find(function (c) { return usados.indexOf(c) < 0; }) || S.COLORES_PROF[0];
+    const p = id ? S.profesional(id) : { color: libre, especialidad: 'Lic. en Kinesiología y Fisiatría' };
+    const set = S.settings;
+    const body =
+      '<div class="form-grid">' +
+        UI.field({ idPrefix: 'pf_', name: 'nombre', label: 'Nombre y apellido', value: p.nombre === 'Profesional principal' ? '' : p.nombre, required: true,
+          placeholder: 'Ej: Lic. María Gómez', attrs: ' autocomplete="off" autofocus' }) +
+        UI.field({ idPrefix: 'pf_', name: 'especialidad', label: 'Título / Especialidad', value: p.especialidad,
+          placeholder: 'Ej: Lic. en Kinesiología, Quiropraxia…' }) +
+        UI.field({ idPrefix: 'pf_', name: 'matricula', label: 'Matrícula profesional', value: p.matricula }) +
+        UI.field({ idPrefix: 'pf_', name: 'telefono', label: 'Teléfono', type: 'tel', value: p.telefono }) +
+        '<div class="field full"><label>Color de su agenda</label>' +
+          '<div class="color-options" role="radiogroup" aria-label="Color de la agenda">' +
+            S.COLORES_PROF.map(function (c, i) {
+              return '<label class="color-opt"><input type="radio" name="color" value="' + c + '"' + (p.color === c ? ' checked' : '') + '>' +
+                '<span style="background:' + c + '"><span class="sr-only">Color ' + (i + 1) + '</span></span></label>';
+            }).join('') +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<fieldset class="form-section sub-section"><legend>' + U.icon('clock') + 'Agenda y valores (opcional)</legend>' +
+        '<p class="hint">Si los dejás vacíos se usan los valores generales del consultorio (' +
+          U.esc(set.horaInicio) + ' a ' + U.esc(set.horaFin) + ' hs, turnos de ' + U.esc(set.duracionTurno) + ' min' +
+          (Number(set.precioSesion) ? ', sesión ' + U.fmtMoney(set.precioSesion) : '') + ').</p>' +
+        '<div class="form-grid">' +
+          UI.field({ idPrefix: 'pf_', name: 'horaInicio', label: 'Inicio de su jornada', type: 'time', value: p.horaInicio }) +
+          UI.field({ idPrefix: 'pf_', name: 'horaFin', label: 'Fin de su jornada', type: 'time', value: p.horaFin }) +
+          UI.field({ idPrefix: 'pf_', name: 'duracionTurno', label: 'Duración de sus turnos (min)', type: 'number', value: p.duracionTurno, min: 5, step: 5 }) +
+          UI.field({ idPrefix: 'pf_', name: 'precioSesion', label: 'Valor de su sesión ($)', type: 'number', value: p.precioSesion, min: 0, step: 'any' }) +
+        '</div>' +
+      '</fieldset>';
+
+    UI.modal({
+      title: id ? 'Editar profesional' : 'Agregar profesional',
+      size: 'md',
+      body: body,
+      submitLabel: id ? 'Guardar cambios' : 'Agregar',
+      onSubmit: function (form) {
+        const d = UI.formData(form);
+        const ini = d.horaInicio || set.horaInicio;
+        const fin = d.horaFin || set.horaFin;
+        if (ini && fin && ini >= fin) {
+          UI.toast('El fin de la jornada debe ser posterior al inicio.', 'error');
+          return false;
+        }
+        d.color = d.color || libre;
+        if (id) d.id = id;
+        else d.activo = true;
+        S.saveProfesional(d);
+        UI.toast(id ? 'Profesional actualizado' : d.nombre + ' ya tiene su agenda');
+        KF.App.updateBrand();
+        if (onSaved) onSaved();
+      }
+    });
+  };
+
+  function quitarProfesional(id, onDone) {
+    const p = S.profesional(id);
+    const uso = S.usoProfesional(id);
+    const conDatos = uso.turnos + uso.evoluciones + uso.pagos > 0;
+    if (conDatos) {
+      /* Con historial: se desactiva para no perder turnos, sesiones ni pagos */
+      UI.confirm({
+        title: 'Desactivar agenda',
+        message: p.nombre + ' tiene ' + uso.turnos + ' turnos, ' + uso.evoluciones + ' sesiones y ' + uso.pagos +
+          ' pagos registrados. Su agenda se va a desactivar (no se le podrán dar turnos nuevos), pero el historial se conserva. ' +
+          'Podés reactivarla cuando quieras.',
+        confirmLabel: 'Desactivar agenda',
+        onConfirm: function () {
+          S.saveProfesional({ id: id, activo: false });
+          UI.toast('Agenda de ' + p.nombre + ' desactivada');
+          KF.App.updateBrand();
+          if (onDone) onDone();
+        }
+      });
+    } else {
+      UI.confirm({
+        title: 'Quitar profesional',
+        message: '¿Quitar a ' + p.nombre + ' del consultorio?',
+        confirmLabel: 'Quitar',
+        onConfirm: function () {
+          S.deleteProfesional(id);
+          UI.toast('Profesional quitado');
+          KF.App.updateBrand();
+          if (onDone) onDone();
+        }
+      });
+    }
+  }
 
   function openPin() {
     UI.modal({
