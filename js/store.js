@@ -3,7 +3,15 @@
   'use strict';
 
   const U = KF.U;
-  const KEY = 'kinesio_datos_v1';
+  const KEY_LOCAL = 'kinesio_datos_v1';          /* modo sin nube */
+  const KEY_NUBE = 'kinesio_nube_cache_v1';       /* copia local de los datos de la nube */
+  const KEY_DISPOSITIVO = 'kinesio_dispositivo_v1'; /* preferencias propias de este dispositivo */
+  let KEY = KEY_LOCAL;
+  let modoNube = false;
+
+  const COLECCIONES = ['profesionales', 'pacientes', 'turnos', 'evoluciones', 'pagos'];
+  /* Ajustes que no se comparten entre dispositivos */
+  const DEVICE_KEYS = ['tamanoLetra', 'pinHash', 'pinLen', 'ultimoBackup'];
 
   const FORMAS_PAGO = [
     'Efectivo',
@@ -66,15 +74,32 @@
 
   let data = load();
 
-  function load() {
+  function leerJSON(key) {
     try {
-      const raw = localStorage.getItem(KEY);
-      if (!raw) return normalize(emptyData());
-      return normalize(JSON.parse(raw));
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
     } catch (e) {
       console.error('No se pudieron leer los datos', e);
-      return normalize(emptyData());
+      return null;
     }
+  }
+
+  function load() {
+    return normalize(leerJSON(KEY) || emptyData());
+  }
+
+  function pick(obj, keys) {
+    const out = {};
+    keys.forEach(function (k) { if (obj && obj[k] !== undefined) out[k] = obj[k]; });
+    return out;
+  }
+
+  /* Preferencias del dispositivo (en modo nube viven aparte de los datos compartidos) */
+  function prefsDispositivo() {
+    const guardadas = leerJSON(KEY_DISPOSITIVO);
+    if (guardadas) return guardadas;
+    const local = leerJSON(KEY_LOCAL);
+    return pick((local && local.settings) || data.settings, DEVICE_KEYS);
   }
 
   function normalize(d) {
@@ -119,15 +144,19 @@
     });
   }
 
-  function save() {
+  /* silencioso: cambios que vienen de la nube y no hay que volver a subir */
+  function save(silencioso) {
+    let ok = true;
     try {
       localStorage.setItem(KEY, JSON.stringify(data));
-      return true;
+      if (modoNube) localStorage.setItem(KEY_DISPOSITIVO, JSON.stringify(pick(data.settings, DEVICE_KEYS)));
     } catch (e) {
       console.error(e);
-      KF.UI && KF.UI.toast('No se pudo guardar. El almacenamiento del navegador está lleno o bloqueado.', 'error');
-      return false;
+      ok = false;
+      if (!modoNube) KF.UI && KF.UI.toast('No se pudo guardar. El almacenamiento del navegador está lleno o bloqueado.', 'error');
     }
+    if (modoNube && !silencioso && KF.Nube) KF.Nube.alGuardar();
+    return ok;
   }
 
   /* CRUD genérico */
@@ -163,6 +192,48 @@
     ESTADOS_TURNO: ESTADOS_TURNO,
 
     COLORES_PROF: COLORES_PROF,
+    COLECCIONES: COLECCIONES,
+    DEVICE_KEYS: DEVICE_KEYS,
+
+    /* ---------- Integración con la nube ---------- */
+    datos: function () { return data; },
+    esModoNube: function () { return modoNube; },
+    /* Datos del modo sin nube de este dispositivo (para ofrecer subirlos) */
+    datosLocales: function () {
+      const d = leerJSON(KEY_LOCAL);
+      return d ? normalize(d) : null;
+    },
+    cacheNube: function () { return leerJSON(KEY_NUBE); },
+    /* Pasa a trabajar con los datos de la nube */
+    activarNube: function (remotos) {
+      const prefs = prefsDispositivo();
+      modoNube = true;
+      KEY = KEY_NUBE;
+      data = normalize(remotos || emptyData());
+      data.settings = Object.assign(data.settings, prefs);
+      save(true);
+      return data;
+    },
+    /* Aplica un registro que llegó de la nube (null = borrado) */
+    aplicarRegistro: function (coleccion, id, rec) {
+      if (coleccion === 'consultorio') {
+        data.settings = Object.assign({}, DEFAULT_SETTINGS, rec || {}, pick(data.settings, DEVICE_KEYS));
+      } else if (COLECCIONES.indexOf(coleccion) >= 0) {
+        const list = data[coleccion];
+        const idx = list.findIndex(function (x) { return x.id === id; });
+        if (!rec) { if (idx >= 0) list.splice(idx, 1); }
+        else if (idx >= 0) list[idx] = rec;
+        else list.push(rec);
+      }
+      save(true);
+    },
+    /* Al cerrar sesión: se borra la copia local de los datos de la nube */
+    salirDeNube: function () {
+      try { localStorage.removeItem(KEY_NUBE); } catch (e) { /* nada */ }
+      modoNube = false;
+      KEY = KEY_LOCAL;
+      data = load();
+    },
 
     estadoLabel: function (value) {
       const e = ESTADOS_TURNO.find(function (x) { return x.value === value; });

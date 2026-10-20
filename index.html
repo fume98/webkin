@@ -21,6 +21,7 @@
   <header class="mobile-top no-print">
     <img class="brand-symbol" src="img/simbolo.webp" alt="" width="40" height="40">
     <span class="mobile-brand"><span class="wordmark"><span class="wm-1">Fisio</span><span class="wm-2">Core</span><span class="wm-3">Salud</span></span><small class="brand-tag">Quiropraxia · Cuerpo Vital</small></span>
+    <button type="button" class="sync-dot" id="sync-dot" hidden></button>
     <button class="btn-icon" id="btn-lock-m" aria-label="Bloquear con clave" title="Bloquear con clave"></button>
   </header>
 
@@ -32,7 +33,7 @@
         <button class="btn-icon" id="btn-lock" aria-label="Bloquear con clave" title="Bloquear con clave"></button>
       </div>
       <nav id="side-nav" class="side-nav" aria-label="Menú principal"></nav>
-      <p class="sidebar-foot">Los datos se guardan en este dispositivo.<br>Hacé copias de seguridad en Ajustes.</p>
+      <div class="sidebar-foot" id="sidebar-foot">Los datos se guardan en este dispositivo.<br>Hacé copias de seguridad en Ajustes.</div>
     </aside>
 
     <main id="main" class="main" tabindex="-1"></main>
@@ -53,11 +54,21 @@
     </div>
   </div>
 
+  <div id="nube-screen" class="lock-screen nube-screen" hidden>
+    <div class="lock-box nube-box">
+      <img class="lock-logo" src="img/logo.webp" alt="FisioCoreSalud · Quiropraxia Cuerpo Vital" width="600" height="781">
+      <div class="nube-content"></div>
+    </div>
+  </div>
+
   <noscript><p style="padding:2rem">Esta aplicación necesita JavaScript activado.</p></noscript>
 
   <script src="js/utils.js"></script>
   <script src="js/store.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/vendor/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/nube.js"></script>
   <script src="js/pacientes.js"></script>
   <script src="js/agenda.js"></script>
   <script src="js/pagos.js"></script>

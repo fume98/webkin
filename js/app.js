@@ -15,6 +15,7 @@
 
   const App = {};
   let locked = false;
+  let listo = false; /* en modo nube, la app se muestra después de ingresar */
 
   function parseRoute() {
     const h = (location.hash || '#/inicio').replace(/^#\/?/, '');
@@ -41,7 +42,7 @@
   }
 
   App.refresh = function () {
-    if (locked) return;
+    if (locked || !listo) return;
     const r = parseRoute();
     const main = document.getElementById('main');
     const scroll = window.scrollY;
@@ -76,6 +77,33 @@
       sub = [profs[0].nombre, profs[0].especialidad].filter(Boolean).join(' · ');
     }
     document.getElementById('brand-sub').textContent = sub;
+  };
+
+  /* ---------- Estado de la nube ---------- */
+  const ESTADOS_NUBE = {
+    ok: { texto: 'Sincronizado', icono: 'check' },
+    guardando: { texto: 'Guardando en la nube…', icono: 'upload' },
+    offline: { texto: 'Sin conexión: los cambios se suben al volver internet', icono: 'alert' },
+    error: { texto: 'No se pudo guardar en la nube', icono: 'alert' }
+  };
+
+  App.mostrarEstadoNube = function (est) {
+    const foot = document.getElementById('sidebar-foot');
+    const dot = document.getElementById('sync-dot');
+    const info = ESTADOS_NUBE[est.tipo];
+    if (!info) {
+      foot.innerHTML = 'Los datos se guardan en este dispositivo.<br>Hacé copias de seguridad en Ajustes.';
+      dot.hidden = true;
+      return;
+    }
+    const email = KF.Nube.usuario() || '';
+    foot.innerHTML = '<span class="sync-line sync-' + est.tipo + '">' + U.icon(info.icono) + '<span>' + info.texto + '</span></span>' +
+      (email ? '<span class="sync-user">' + U.icon('user') + U.esc(email) + '</span>' : '');
+    dot.hidden = false;
+    dot.className = 'sync-dot sync-' + est.tipo;
+    dot.innerHTML = U.icon(info.icono);
+    dot.title = info.texto;
+    dot.setAttribute('aria-label', info.texto);
   };
 
   /* ---------- PIN ---------- */
@@ -170,9 +198,25 @@
       if (ev.key === 'Escape' && document.getElementById('modal-root').classList.contains('open')) KF.UI.closeModal();
     });
     window.addEventListener('hashchange', onRoute);
+    KF.Nube.alCambiarEstado(App.mostrarEstadoNube);
+    document.getElementById('sync-dot').addEventListener('click', function () {
+      const info = ESTADOS_NUBE[KF.Nube.estado().tipo];
+      if (info) KF.UI.toast(info.texto + (KF.Nube.usuario() ? ' · ' + KF.Nube.usuario() : ''), KF.Nube.estado().tipo === 'ok' ? 'ok' : 'error');
+    });
 
-    if (S.settings.pinHash) App.lock();
-    else App.refresh();
+    /* Permite abrir la app sin internet (solo cuando está publicada en la web) */
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+      navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('Sin modo offline:', e); });
+    }
+
+    KF.Nube.arrancar(function () {
+      listo = true;
+      App.applyFont();
+      App.updateBrand();
+      App.mostrarEstadoNube(KF.Nube.estado());
+      if (S.settings.pinHash) App.lock();
+      else App.refresh();
+    });
   };
 
   KF.App = App;

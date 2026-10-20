@@ -11,6 +11,7 @@
   AJ.render = function (main) {
     const set = S.settings;
     const st = S.stats();
+    const nube = S.esModoNube();
 
     main.innerHTML =
       '<div class="page-head"><div><h1>Ajustes</h1><p class="sub">Configurá la aplicación a tu medida</p></div></div>' +
@@ -67,13 +68,18 @@
         '</div>' +
       '</section>' +
 
+      panelNube() +
+
       '<section class="panel">' +
         '<h2>' + U.icon('download') + 'Copia de seguridad</h2>' +
         '<p>Tenés <strong>' + st.profesionales + '</strong> ' + (st.profesionales === 1 ? 'profesional' : 'profesionales') + ', <strong>' + st.pacientes + '</strong> pacientes, <strong>' + st.turnos + '</strong> turnos, ' +
           '<strong>' + st.evoluciones + '</strong> registros de historia clínica y <strong>' + st.pagos + '</strong> pagos.</p>' +
-        '<p class="muted">Los datos se guardan en este dispositivo y navegador. Descargá una copia de seguridad seguido ' +
-          '(por ejemplo, una vez por semana) y guardala en un lugar seguro (pendrive, Google Drive, mail). ' +
-          'Con ese archivo podés recuperar todo o pasar los datos a otra computadora.</p>' +
+        (nube
+          ? '<p class="muted">Los datos están en la nube y se comparten entre todos los dispositivos. Igual conviene descargar ' +
+            'una copia de seguridad cada tanto y guardarla en un lugar seguro.</p>'
+          : '<p class="muted">Los datos se guardan en este dispositivo y navegador. Descargá una copia de seguridad seguido ' +
+            '(por ejemplo, una vez por semana) y guardala en un lugar seguro (pendrive, Google Drive, mail). ' +
+            'Con ese archivo podés recuperar todo o pasar los datos a otra computadora.</p>') +
         (set.ultimoBackup ? '<p class="small">Última copia descargada: <strong>' + U.fmtDate(set.ultimoBackup.slice(0, 10)) + '</strong></p>' : '') +
         '<div class="toolbar">' +
           '<button class="btn btn-primary" id="bk-export">' + U.icon('download') + 'Descargar copia de seguridad</button>' +
@@ -89,6 +95,8 @@
           '<button class="btn btn-ghost danger" id="reset">' + U.icon('trash') + 'Borrar todos los datos</button>' +
         '</div>' +
       '</section>';
+
+    bindNube(main);
 
     main.querySelector('#prof-nuevo').addEventListener('click', function () { AJ.openProfesional(null, function () { AJ.render(main); }); });
     main.querySelectorAll('[data-prof-edit]').forEach(function (b) {
@@ -155,7 +163,8 @@
       reader.onload = function () {
         UI.confirm({
           title: 'Restaurar copia de seguridad',
-          message: 'Se reemplazarán TODOS los datos actuales por los del archivo "' + file.name + '". ¿Continuar?',
+          message: 'Se reemplazarán TODOS los datos actuales por los del archivo "' + file.name + '"' +
+            (nube ? ', en la nube y para todos los profesionales' : '') + '. ¿Continuar?',
           confirmLabel: 'Restaurar',
           onConfirm: function () {
             try {
@@ -190,7 +199,8 @@
         size: 'sm',
         danger: true,
         submitLabel: 'Borrar todo',
-        body: '<p class="confirm-text">Se eliminarán todos los pacientes, historias clínicas, turnos, pagos y ajustes. ' +
+        body: '<p class="confirm-text">Se eliminarán todos los pacientes, historias clínicas, turnos, pagos y ajustes' +
+          (nube ? ' <strong>de la nube, para todos los profesionales y dispositivos</strong>' : '') + '. ' +
           '<strong>No se puede deshacer.</strong></p>' +
           UI.field({ name: 'conf', label: 'Para confirmar escribí BORRAR', required: true, attrs: ' autocomplete="off"' }),
         onSubmit: function (form) {
@@ -208,10 +218,167 @@
     });
   };
 
+  /* ================= Base de datos en la nube ================= */
+  const TEXTO_ESTADO = {
+    ok: 'Sincronizado',
+    guardando: 'Guardando cambios…',
+    offline: 'Sin conexión (los cambios se suben solos al volver internet)',
+    error: 'Hubo un problema al guardar en la nube'
+  };
+
+  function panelNube() {
+    const N = KF.Nube;
+    if (!S.esModoNube()) {
+      return '<section class="panel">' +
+        '<h2>' + U.icon('upload') + 'Base de datos en la nube</h2>' +
+        '<p>Ahora los datos se guardan solo en este dispositivo. Conectando una base de datos en la nube (Supabase), ' +
+          'todos los profesionales pueden ver y cargar las agendas desde su celular o computadora, cada uno con su usuario y contraseña.</p>' +
+        '<p class="muted">Primero hay que crear el proyecto en Supabase y correr el archivo <strong>supabase/esquema.sql</strong> ' +
+          '(los pasos están en el README del proyecto). Después pegá acá los datos de conexión.</p>' +
+        '<div class="toolbar"><button type="button" class="btn btn-primary" id="nube-conectar">' + U.icon('upload') + 'Conectar con Supabase</button></div>' +
+      '</section>';
+    }
+    const est = N.estado();
+    const cfg = N.config() || {};
+    return '<section class="panel" id="panel-nube">' +
+      '<h2>' + U.icon('upload') + 'Base de datos en la nube</h2>' +
+      '<dl class="info-grid">' +
+        '<div class="info"><dt>Cuenta</dt><dd>' + U.esc(N.usuario() || '—') + '</dd></div>' +
+        '<div class="info"><dt>Estado</dt><dd><span class="sync-line sync-' + U.esc(est.tipo) + '">' +
+          U.esc(TEXTO_ESTADO[est.tipo] || est.tipo) + '</span>' +
+          (N.pendientes() ? ' <span class="muted">(' + N.pendientes() + ' cambios por subir)</span>' : '') +
+          (est.detalle && est.tipo === 'error' ? '<br><small class="muted">' + U.esc(est.detalle) + '</small>' : '') + '</dd></div>' +
+      '</dl>' +
+      '<div class="toolbar" style="margin-top:1rem">' +
+        '<button type="button" class="btn btn-secondary" id="nube-sync">' + U.icon('upload') + 'Sincronizar ahora</button>' +
+        '<button type="button" class="btn btn-ghost" id="nube-salir">' + U.icon('lock') + 'Cerrar sesión</button>' +
+        (cfg.origen === 'dispositivo'
+          ? '<button type="button" class="btn btn-ghost danger" id="nube-desconectar">Dejar de usar la nube en este dispositivo</button>' : '') +
+      '</div>' +
+      '<h3 class="sub-title">' + U.icon('users') + 'Usuarios con acceso</h3>' +
+      '<p class="muted">Solo estas personas pueden ver los datos del consultorio. Para sumar a alguien: agregá su email acá ' +
+        'y pedile que entre a la app y toque <strong>"Crear una cuenta"</strong> con ese mismo email.</p>' +
+      '<div id="miembros-lista"><p class="muted">Cargando…</p></div>' +
+      '<form class="add-member" id="miembro-form" novalidate>' +
+        UI.field({ idPrefix: 'mb_', name: 'email', label: 'Email de la persona', type: 'email', required: true,
+          attrs: ' autocomplete="off" inputmode="email"' }) +
+        '<button type="submit" class="btn btn-primary">' + U.icon('plus') + 'Dar acceso</button>' +
+      '</form>' +
+    '</section>';
+  }
+
+  function cargarMiembros(main) {
+    const box = main.querySelector('#miembros-lista');
+    if (!box) return;
+    const yo = KF.Nube.usuario();
+    KF.Nube.listarMiembros().then(function (lista) {
+      box.innerHTML = '<ul class="row-list compact">' + lista.map(function (m) {
+        return '<li class="row-item static"><div class="row-main"><strong>' + U.esc(m.email) + (m.email === yo ? ' (vos)' : '') + '</strong>' +
+          '<span class="muted small">' + (m.agregado_por ? 'Agregado por ' + U.esc(m.agregado_por) : '') + '</span></div>' +
+          (m.email === yo ? '' : '<button type="button" class="btn btn-sm btn-ghost danger" data-quitar="' + U.esc(m.email) + '">' +
+            U.icon('trash') + 'Quitar acceso</button>') +
+        '</li>';
+      }).join('') + '</ul>';
+      box.querySelectorAll('[data-quitar]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          UI.confirm({
+            title: 'Quitar acceso',
+            message: b.dataset.quitar + ' ya no va a poder ver ni cargar datos del consultorio. ¿Continuar?',
+            confirmLabel: 'Quitar acceso',
+            onConfirm: function () {
+              KF.Nube.quitarMiembro(b.dataset.quitar).then(function () {
+                UI.toast('Acceso quitado');
+                cargarMiembros(main);
+              }).catch(function (e) { UI.toast(KF.Nube.mensajeError(e), 'error'); });
+            }
+          });
+        });
+      });
+    }).catch(function (e) {
+      box.innerHTML = '<p class="muted">No se pudo cargar la lista: ' + U.esc(KF.Nube.mensajeError(e)) + '</p>';
+    });
+  }
+
+  function bindNube(main) {
+    const conectar = main.querySelector('#nube-conectar');
+    if (conectar) conectar.addEventListener('click', abrirConexion);
+    if (!S.esModoNube()) return;
+    cargarMiembros(main);
+    main.querySelector('#nube-sync').addEventListener('click', function () {
+      KF.Nube.sincronizarAhora().then(function () {
+        UI.toast(KF.Nube.pendientes() ? 'Quedan cambios por subir: revisá la conexión' : 'Todo sincronizado',
+          KF.Nube.pendientes() ? 'error' : 'ok');
+        AJ.render(main);
+      });
+    });
+    main.querySelector('#nube-salir').addEventListener('click', function () { KF.Nube.cerrarSesion(); });
+    const desc = main.querySelector('#nube-desconectar');
+    if (desc) desc.addEventListener('click', function () {
+      UI.confirm({
+        title: 'Dejar de usar la nube',
+        message: 'Este dispositivo vuelve a guardar los datos solo de forma local. Los datos de la nube no se borran.',
+        confirmLabel: 'Desconectar',
+        danger: false,
+        onConfirm: function () { KF.Nube.desconectarDispositivo(); }
+      });
+    });
+    main.querySelector('#miembro-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      const form = ev.target;
+      if (!UI.validate(form)) return;
+      const email = UI.formData(form).email.toLowerCase();
+      KF.Nube.agregarMiembro(email).then(function () {
+        UI.toast(email + ' ya tiene acceso');
+        form.reset();
+        cargarMiembros(main);
+      }).catch(function (e) { UI.toast(KF.Nube.mensajeError(e), 'error'); });
+    });
+  }
+
+  function abrirConexion() {
+    UI.modal({
+      title: 'Conectar con Supabase',
+      size: 'md',
+      body: '<p class="modal-sub">Los datos están en Supabase → Project Settings → API Keys / Data API.</p>' +
+        '<div class="form-grid one">' +
+          UI.field({ idPrefix: 'sb_', name: 'url', label: 'Project URL', required: true,
+            placeholder: 'https://abcdefghijkl.supabase.co', attrs: ' autocomplete="off" inputmode="url"' }) +
+          UI.field({ idPrefix: 'sb_', name: 'key', label: 'Clave pública ("publishable" o "anon public")', type: 'textarea', rows: 3, required: true,
+            placeholder: 'sb_publishable_… o eyJhbGciOi…', hint: 'Nunca uses la clave "secret" ni la "service_role".' }) +
+        '</div>' +
+        '<p class="hint">Esta conexión queda guardada en este dispositivo. Para que todos los dispositivos se conecten solos, ' +
+          'esos mismos datos se pueden cargar en el archivo js/config.js.</p>',
+      submitLabel: 'Conectar',
+      onSubmit: function (form) {
+        const d = UI.formData(form);
+        if (!KF.Nube.validarUrl(d.url)) {
+          UI.toast('La URL tiene que ser del tipo https://xxxx.supabase.co', 'error');
+          return false;
+        }
+        if (/^sb_secret_/.test(d.key) || /service_role/.test(atobSeguro(d.key))) {
+          UI.toast('Esa es una clave secreta y no se debe usar acá. Copiá la clave "publishable" o "anon public".', 'error');
+          return false;
+        }
+        KF.Nube.guardarConfig(d.url, d.key);
+        location.hash = '';
+        location.reload();
+      }
+    });
+  }
+
+  /* Lee el contenido de la clave (JWT) para detectar si es la secreta */
+  function atobSeguro(jwt) {
+    try {
+      const parte = String(jwt).split('.')[1] || '';
+      return atob(parte.replace(/-/g, '+').replace(/_/g, '/'));
+    } catch (e) { return ''; }
+  }
+
   /* ================= Profesionales ================= */
   /* "Lic. María Gómez" -> "MG" */
   function iniciales(nombre) {
-    const partes = String(nombre || '').replace(/^(lic|dr|dra|klgo|klga|prof)\.?\s+/i, '').trim().split(/\s+/);
+    const partes = String(nombre || '').replace(/^(lic|dr|dra|klgo|klga|prof)\.?\s+/i, '').trim().split(/\s+/)
+      .filter(function (w) { return /^\p{L}/u.test(w); });
     return ((partes[0] || '').charAt(0) + (partes.length > 1 ? partes[partes.length - 1].charAt(0) : '')).toUpperCase() || '?';
   }
 
