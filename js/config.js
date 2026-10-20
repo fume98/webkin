@@ -13,6 +13,6 @@
  * o se puede conectar desde Ajustes → Base de datos en la nube.
  */
 window.KF_CONFIG = {
-  supabaseUrl: '',
-  supabaseAnonKey: ''
+  supabaseUrl: 'https://wmnyqsdfqjultmuacepl.supabase.co',
+  supabaseAnonKey: 'sb_publishable_NFwIixNoaeWqquSvdU3XQw_i7y9NvHO'
 };
