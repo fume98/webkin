@@ -4,6 +4,9 @@ Aplicación web del consultorio **FisioCoreSalud · Quiropraxia Cuerpo Vital** p
 
 No necesita instalación ni servidor: son archivos HTML, CSS y JavaScript que funcionan en cualquier navegador (computadora, tablet o celular).
 
+> **Software propietario. © 2026 FisioCoreSalud. Todos los derechos reservados.**
+> Este código no es de uso libre. Solo puede usarse con una licencia otorgada por escrito por el titular. Está prohibido copiarlo, modificarlo, distribuirlo o usarlo para prestar servicios a terceros sin autorización. Ver [LICENSE](LICENSE).
+
 ## Funciones
 
 **Pacientes**
@@ -45,14 +48,23 @@ No necesita instalación ni servidor: son archivos HTML, CSS y JavaScript que fu
 
 ## Cómo usarla
 
-### Opción 1: en la computadora, sin internet
-Descargá el proyecto (botón verde **Code → Download ZIP** en GitHub), descomprimilo y abrí `index.html` con Chrome, Edge o Firefox.
+El repositorio es **privado**. La app se publica en la web desde el repositorio privado, sin que el código quede a la vista en GitHub.
 
-### Opción 2: online, gratis, con GitHub Pages
-1. En GitHub, entrá al repositorio → **Settings** → **Pages**.
-2. En *Source* elegí **Deploy from a branch**, seleccioná la rama y la carpeta `/ (root)` → **Save**.
-3. En un par de minutos vas a tener un link del tipo `https://USUARIO.github.io/webkin/`.
-4. En el celular, abrí el link y elegí **"Agregar a pantalla de inicio"** para usarla como una app.
+### Publicarla con Netlify (gratis, funciona con repositorio privado)
+1. Entrá a [netlify.com](https://www.netlify.com) y creá una cuenta con **Sign up with GitHub**.
+2. Tocá **Add new project → Import an existing project → GitHub** y autorizá a Netlify a ver **solo** el repositorio `webkin`.
+3. Configurá:
+   - **Branch to deploy**: la rama de la app.
+   - **Build command**: dejalo **vacío**.
+   - **Publish directory**: `.` (un punto).
+4. Tocá **Deploy**. En un minuto vas a tener un link del tipo `https://algo.netlify.app`. En **Site configuration → Change site name** podés ponerle, por ejemplo, `fisiocoresalud`, y queda `https://fisiocoresalud.netlify.app`.
+5. Cada vez que se actualiza el código en GitHub, Netlify publica la nueva versión sola.
+6. En el celular, abrí el link y elegí **"Agregar a pantalla de inicio"** para usarla como una app.
+
+> GitHub Pages solo publica gratis desde repositorios públicos, por eso se usa Netlify. Cloudflare Pages o Vercel también sirven.
+
+### Quién puede usarla
+Aunque alguien tenga el link, **no puede usar la app sin permiso**: tiene que ingresar con una cuenta que figure en **Ajustes → Usuarios con acceso**. Sin eso no ve la agenda ni ningún dato.
 
 ## Base de datos en la nube (Supabase)
 
@@ -63,7 +75,7 @@ Sin nube, cada dispositivo guarda sus propios datos. Con la nube, **todos los pr
 2. Poné un nombre (por ejemplo `fisiocoresalud`), elegí una **contraseña de la base de datos** (guardala) y la región **South America (São Paulo)**. Esperá un par de minutos a que se cree.
 3. Andá a **SQL Editor → New query**, pegá todo el contenido del archivo [`supabase/esquema.sql`](supabase/esquema.sql) y tocá **Run**. Tiene que decir *Success*.
 4. Andá a **Authentication → URL Configuration**:
-   - En **Site URL** poné el link de la app, por ejemplo `https://fume98.github.io/webkin/`.
+   - En **Site URL** poné el link de la app, por ejemplo `https://fisiocoresalud.netlify.app/`.
    - En **Redirect URLs** agregá ese mismo link.
 
    Así funcionan los emails de confirmación de cuenta y de cambio de contraseña.

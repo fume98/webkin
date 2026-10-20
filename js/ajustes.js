@@ -94,7 +94,9 @@
           '<button class="btn btn-ghost" id="demo">Cargar datos de ejemplo</button>' +
           '<button class="btn btn-ghost danger" id="reset">' + U.icon('trash') + 'Borrar todos los datos</button>' +
         '</div>' +
-      '</section>';
+      '</section>' +
+      '<p class="legal">© 2026 FisioCoreSalud · Quiropraxia Cuerpo Vital. Todos los derechos reservados.<br>' +
+        'Software propietario de uso exclusivo bajo licencia. Prohibida su copia, modificación o distribución sin autorización del titular.</p>';
 
     bindNube(main);
 

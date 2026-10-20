@@ -564,6 +564,7 @@ strong { font-weight: 700; }
 
 .file-btn { cursor: pointer; }
 .danger-zone { border-color: #efcfcb; }
+.legal { text-align: center; color: var(--muted); font-size: .8rem; margin: 1.5rem 0 0; }
 
 /* ---------------- Modal ---------------- */
 .modal-root { display: none; }

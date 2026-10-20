@@ -1,0 +1,41 @@
+FisioCoreSalud · Quiropraxia Cuerpo Vital
+Licencia de software propietario
+
+Copyright (c) 2026 FisioCoreSalud. Todos los derechos reservados.
+
+Este software, incluidos su código fuente, diseño, logotipos, textos,
+estructura de base de datos y documentación (en adelante, "el Software"),
+es propiedad exclusiva de su titular y está protegido por la Ley 11.723
+de Propiedad Intelectual de la República Argentina y por los tratados
+internacionales aplicables.
+
+1. Uso con permiso. Solo pueden usar el Software las personas o
+   instituciones que cuenten con una autorización (licencia) otorgada
+   por escrito por el titular, y únicamente dentro de los términos de
+   esa autorización.
+
+2. Prohibiciones. Sin autorización previa y por escrito del titular,
+   queda prohibido:
+   a) copiar, reproducir o descargar el Software, total o parcialmente;
+   b) modificarlo, traducirlo, adaptarlo o crear obras derivadas;
+   c) distribuirlo, publicarlo, venderlo, alquilarlo, sublicenciarlo o
+      ponerlo a disposición de terceros por cualquier medio;
+   d) usarlo para prestar servicios a terceros;
+   e) aplicar ingeniería inversa, descompilarlo o intentar obtener su
+      código fuente;
+   f) quitar o alterar los avisos de autoría, marcas o esta licencia.
+
+3. Datos. Los datos que cada usuario autorizado cargue en el Software
+   (pacientes, historias clínicas, turnos, pagos) pertenecen a quien los
+   carga y deben tratarse conforme a la Ley 25.326 de Protección de Datos
+   Personales y la Ley 26.529 de Derechos del Paciente.
+
+4. Sin garantías. El Software se entrega "tal como está", sin garantías
+   de ningún tipo, salvo las que se acuerden por escrito en cada licencia.
+
+5. Componentes de terceros. El Software incluye componentes de terceros
+   que conservan sus propias licencias, detalladas en sus archivos
+   (por ejemplo, js/vendor/supabase-LICENSE.txt, licencia MIT). Esta
+   licencia no modifica los derechos sobre esos componentes.
+
+Para solicitar una licencia de uso, contactar al titular de FisioCoreSalud.
