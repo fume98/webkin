@@ -43,6 +43,7 @@ No necesita instalación ni servidor: son archivos HTML, CSS y JavaScript que fu
 - Tamaño de letra: Normal, Grande o Muy grande.
 - Clave PIN para abrir la aplicación.
 - Base de datos en la nube (Supabase): conexión, usuarios con acceso y estado de sincronización.
+- **Marca y colores:** nombre, subtítulo, logo, ícono y colores del consultorio, con vista previa en vivo y paletas listas.
 - Copia de seguridad: descargar y restaurar.
 - Datos de ejemplo para probar.
 
@@ -111,6 +112,45 @@ Hay dos formas:
   - Si el proyecto pasa una semana sin uso, Supabase lo pausa. Se reactiva con un clic desde su panel.
   - Los emails de confirmación tienen un límite de pocos por hora. Si alguno no llega, se puede confirmar la cuenta a mano en **Authentication → Users**.
 
+## Marca y colores
+
+Cada consultorio puede ponerle su propia identidad a la app desde **Ajustes → Marca y colores → Personalizar**, sin tocar código:
+- **Nombre y subtítulo** del consultorio. Se ven en la app, en la pestaña del navegador, en los recibos y en los recordatorios de WhatsApp.
+- **Logo:** PNG con fondo transparente o con fondo negro (esto último se detecta solo). Si no hay logo, se muestra el nombre con un ícono.
+- **Ícono:** opcional, para el celular y la pestaña del navegador.
+- **Colores:** principal, acento y barra lateral. Se pueden elegir paletas listas o cualquier color. Si un color dificulta la lectura, la app lo ajusta sola, y si la barra es clara, los textos pasan a oscuro.
+
+Mientras se elige, la app ya se ve con la marca nueva. Con la nube activa, la marca se aplica en todos los dispositivos del consultorio. **Volver a la marca original** deshace todo.
+
+Los valores de fábrica de cada instalación están en [`js/marca.js`](js/marca.js).
+
+## Vender la app a colegas
+
+La misma app se instala por separado para cada consultorio que compra una licencia. Cada cliente tiene **su propia base de datos** (nadie ve datos de otro consultorio) y **su propio link**, con su nombre, logo y colores. El código queda en tu repositorio privado: el cliente solo recibe el link.
+
+### Para cada cliente nuevo
+1. **Base de datos:** creá un proyecto de Supabase para el cliente (ver "Base de datos en la nube", pasos 1 a 5) y corré `supabase/esquema.sql`. Lo ideal es que la cuenta de Supabase sea del cliente: el plan gratis permite 2 proyectos activos por cuenta.
+2. **Sitio:** en Netlify, **Add new project → Import an existing project**, y elegí este mismo repositorio y rama. Configurá:
+   - **Build command**: `node herramientas/configurar-cliente.js`
+   - **Publish directory**: `.`
+3. **Datos del cliente:** antes de publicar, en **Site configuration → Environment variables**, cargá:
+
+   | Variable | Qué poner |
+   |---|---|
+   | `SUPABASE_URL` | Project URL del Supabase del cliente |
+   | `SUPABASE_KEY` | Clave pública (`sb_publishable_…`) del cliente |
+   | `CONSULTORIO_NOMBRE` | Nombre del consultorio, por ejemplo `Centro Kinésico Sur` |
+   | `CONSULTORIO_SUBTITULO` | Opcional, por ejemplo `Lic. Ana Pérez` |
+   | `COLOR_PRINCIPAL`, `COLOR_ACENTO`, `COLOR_BARRA` | Opcionales, del tipo `#1f6fb2` |
+
+4. **Publicar:** tocá **Deploy** y ponele un nombre al sitio, por ejemplo `centrokinesicosur.netlify.app`. En el Supabase del cliente, cargá ese link en **Authentication → URL Configuration**.
+5. **Entregar:** el cliente abre el link y crea su cuenta (queda como dueño de su consultorio). Después sube su logo y elige sus colores en **Ajustes → Marca y colores**, y suma a sus colegas en **Usuarios con acceso**.
+
+Tu propia instalación (FisioCoreSalud) no usa *Build command*, así que siempre muestra tu marca. Cuando actualizás el código, Netlify actualiza todas las instalaciones solas.
+
+### Licencias
+El software es propietario (ver [LICENSE](LICENSE)). Conviene firmar con cada cliente un acuerdo de licencia simple: precio, plazo, cantidad de profesionales, que no puede copiar ni revender el software, y que los datos de sus pacientes son de él.
+
 ## Importante sobre los datos
 
 - **Sin nube**, los datos se guardan solo en el navegador del dispositivo donde se cargan. Si usás la app en la compu y en el celular, cada uno tiene sus propios datos. Para pasarlos, usá **Ajustes → Descargar copia de seguridad** y después **Restaurar desde archivo** en el otro dispositivo.
@@ -131,6 +171,9 @@ js/pacientes.js       Fichas e historia clínica
 js/agenda.js          Turnos
 js/pagos.js           Pagos y recibos
 js/ajustes.js         Configuración, profesionales, nube y copias de seguridad
+js/marca.js           Marca de fábrica de la instalación (nombre, logo y colores)
+js/tema.js            Calcula los colores del diseño a partir de los de la marca
+js/marca-ui.js        Aplica la marca y editor "Marca y colores"
 js/nube.js            Ingreso y sincronización con Supabase
 js/config.js          Datos de conexión con Supabase
 js/vendor/supabase.js Librería oficial de Supabase (licencia MIT)
@@ -138,6 +181,8 @@ js/demo.js            Datos de ejemplo
 js/app.js             Navegación y clave PIN
 img/logo.webp         Logo de FisioCoreSalud
 img/simbolo-*.png     Ícono de la app (favicon y celular)
+img/generico*         Ícono genérico para instalaciones de clientes
+herramientas/configurar-cliente.js  Prepara la instalación de un cliente (lo ejecuta Netlify)
 sw.js                 Permite abrir la app sin internet
 supabase/esquema.sql  Tablas y reglas de seguridad de la base de datos
 ```

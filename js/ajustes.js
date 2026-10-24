@@ -68,6 +68,16 @@
         '</div>' +
       '</section>' +
 
+      '<section class="panel">' +
+        '<div class="panel-head">' +
+          '<h2>' + U.icon('heart') + 'Marca y colores</h2>' +
+          '<button type="button" class="btn btn-primary" id="marca-editar">' + U.icon('edit') + 'Personalizar</button>' +
+        '</div>' +
+        '<p class="muted">El nombre, el logo y los colores del consultorio. Se ven en toda la app, en los recibos y en los recordatorios' +
+          (nube ? ', y se aplican en todos los dispositivos' : '') + '.</p>' +
+        KF.Marca.resumenHtml() +
+      '</section>' +
+
       panelNube() +
 
       '<section class="panel">' +
@@ -95,10 +105,13 @@
           '<button class="btn btn-ghost danger" id="reset">' + U.icon('trash') + 'Borrar todos los datos</button>' +
         '</div>' +
       '</section>' +
-      '<p class="legal">© 2026 FisioCoreSalud · Quiropraxia Cuerpo Vital. Todos los derechos reservados.<br>' +
+      '<p class="legal">Software © 2026 ' + U.esc(KF.Marca.actual().proveedor || 'FisioCoreSalud') + '. Todos los derechos reservados.<br>' +
         'Software propietario de uso exclusivo bajo licencia. Prohibida su copia, modificación o distribución sin autorización del titular.</p>';
 
     bindNube(main);
+    main.querySelector('#marca-editar').addEventListener('click', function () {
+      KF.Marca.abrirEditor(function () { AJ.render(main); });
+    });
 
     main.querySelector('#prof-nuevo').addEventListener('click', function () { AJ.openProfesional(null, function () { AJ.render(main); }); });
     main.querySelectorAll('[data-prof-edit]').forEach(function (b) {

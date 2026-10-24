@@ -310,11 +310,13 @@
     const prof = S.profesional(t.profesionalId);
     const pagos = S.pagos().filter(function (x) { return x.turnoId === t.id; });
 
-    const msg = 'Hola ' + (p ? p.nombre : '') + '! Te recuerdo tu turno en FisioCoreSalud - Quiropraxia Cuerpo Vital el ' +
+    const marca = KF.Marca.actual();
+    const consultorio = marca.nombre + (marca.subtitulo ? ' - ' + marca.subtitulo.replace(/\s*·\s*/g, ' ') : '');
+    const msg = 'Hola ' + (p ? p.nombre : '') + '! Te recuerdo tu turno en ' + consultorio + ' el ' +
       U.fmtDateLong(t.fecha).toLowerCase() + ' a las ' + t.hora + ' hs' +
       (prof && UI.hayVariosProfesionales() ? ' con ' + prof.nombre : '') +
       (set.direccion ? ' en ' + set.direccion : '') + '. Por favor confirmá tu asistencia. ' +
-      '\n' + (prof ? prof.nombre + ' · ' : '') + 'FisioCoreSalud - Quiropraxia Cuerpo Vital';
+      '\n' + (prof ? prof.nombre + ' · ' : '') + consultorio;
     const wa = p ? U.waLink(p.telefono, msg) : '';
 
     const body =

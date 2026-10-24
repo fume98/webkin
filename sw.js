@@ -3,15 +3,18 @@
  * Siempre intenta primero la versión más nueva (red) y, si no hay conexión, usa la guardada.
  * Solo maneja archivos de la propia app: los datos de Supabase nunca pasan por acá.
  */
-const CACHE = 'fisiocore-v1';
+const CACHE = 'consultorio-v2';
 const ARCHIVOS = [
   './',
   'index.html',
   'manifest.webmanifest',
   'css/styles.css',
+  'js/marca.js',
+  'js/tema.js',
   'js/utils.js',
   'js/store.js',
   'js/ui.js',
+  'js/marca-ui.js',
   'js/vendor/supabase.js',
   'js/config.js',
   'js/nube.js',
@@ -27,7 +30,12 @@ const ARCHIVOS = [
   'img/simbolo-64.png',
   'img/simbolo-180.png',
   'img/simbolo-192.png',
-  'img/simbolo-512.png'
+  'img/simbolo-512.png',
+  'img/generico.svg',
+  'img/generico-64.png',
+  'img/generico-180.png',
+  'img/generico-192.png',
+  'img/generico-512.png'
 ];
 
 self.addEventListener('install', function (event) {

@@ -70,6 +70,7 @@
   };
 
   App.updateBrand = function () {
+    KF.Marca.aplicar();
     const profs = S.profesionales();
     let sub = 'Kinesiología y Fisiatría';
     if (profs.length > 1) sub = profs.length + ' profesionales';

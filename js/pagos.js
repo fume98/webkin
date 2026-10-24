@@ -230,9 +230,14 @@
     const pac = S.paciente(p.pacienteId);
     const set = S.settings;
     const prof = S.profesional(p.profesionalId) || {};
+    const marca = KF.Marca.actual();
+    const logoRec = marca.logo || marca.simbolo;
     const html =
       '<div class="recibo">' +
-        '<header><img class="rec-logo" src="img/logo.webp" alt="FisioCoreSalud · Quiropraxia Cuerpo Vital"><div class="rec-info"><strong class="rec-brand">FisioCoreSalud</strong><br><span class="rec-tag">Quiropraxia · Cuerpo Vital</span><br>' +
+        '<header>' +
+          (logoRec ? '<img class="rec-logo' + (marca.logoFondoOscuro ? ' fondo-oscuro' : '') + '" src="' + U.esc(logoRec) + '" alt="' + U.esc(KF.Marca.nombreCompleto(marca)) + '">' : '') +
+          '<div class="rec-info"><strong class="rec-brand">' + U.esc(marca.nombre) + '</strong><br>' +
+          (marca.subtitulo ? '<span class="rec-tag">' + U.esc(marca.subtitulo) + '</span><br>' : '') +
           (prof.nombre ? U.esc(prof.nombre) + '<br>' : '') +
           U.esc(prof.especialidad || '') + (prof.matricula ? ' · M.P. ' + U.esc(prof.matricula) : '') + '<br>' +
           U.esc([set.direccion, set.telefono].filter(Boolean).join(' · ')) + '</div>' +

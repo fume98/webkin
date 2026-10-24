@@ -20,19 +20,25 @@
   /* ---------- Ventana modal ---------- */
   let lastFocus = null;
 
+  let alCerrar = null;
+
   UI.closeModal = function () {
     const root = document.getElementById('modal-root');
     root.innerHTML = '';
     root.classList.remove('open');
     document.body.classList.remove('no-scroll');
     if (lastFocus && lastFocus.focus) lastFocus.focus();
+    const f = alCerrar;
+    alCerrar = null;
+    if (f) f();
   };
 
   /*
    * opts: { title, body (html), size: 'sm'|'md'|'lg', submitLabel, danger,
-   *         onSubmit(form) -> false para no cerrar, extraFooter (html), onOpen(el) }
+   *         onSubmit(form) -> false para no cerrar, extraFooter (html), onOpen(el), onClose() }
    */
   UI.modal = function (opts) {
+    if (alCerrar) { const f = alCerrar; alCerrar = null; f(); }
     lastFocus = document.activeElement;
     const root = document.getElementById('modal-root');
     const hasForm = !!opts.onSubmit;
@@ -56,6 +62,7 @@
       '</div>';
     root.classList.add('open');
     document.body.classList.add('no-scroll');
+    alCerrar = opts.onClose || null;
 
     root.querySelectorAll('[data-close]').forEach(function (b) {
       b.addEventListener('click', UI.closeModal);
