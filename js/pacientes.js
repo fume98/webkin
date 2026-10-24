@@ -443,7 +443,17 @@
   /* ---------- Turnos del paciente ---------- */
   function drawTurnos(box, p) {
     const turnos = S.turnosDePaciente(p.id).slice().reverse();
-    let html = '<div class="toolbar no-print"><button class="btn btn-primary" data-new>' + U.icon('plus') + 'Dar turno</button></div>';
+    const hoy = U.today();
+    const proximos = S.turnosDePaciente(p.id).filter(function (t) {
+      return t.fecha >= hoy && t.estado !== 'cancelado' && t.estado !== 'ausente' && t.estado !== 'asistio';
+    });
+    const wa = proximos.length ? U.waLink(p.telefono, KF.Avisos.mensajeConfirmacion(proximos)) : '';
+    let html = '<div class="toolbar no-print"><button class="btn btn-primary" data-new>' + U.icon('plus') + 'Dar turno</button>' +
+      (wa ? '<a class="btn btn-wa" href="' + U.esc(wa) + '" target="_blank" rel="noopener" data-wa-proximos>' + U.icon('whatsapp') +
+        'Enviar ' + (proximos.length === 1 ? 'el próximo turno' : 'los ' + proximos.length + ' próximos turnos') + ' por WhatsApp</a>' : '') +
+      (proximos.length ? '<button class="btn btn-secondary" data-ics>' + U.icon('calendar') + 'Descargar para el calendario</button>' : '') +
+    '</div>' +
+    (proximos.length && !p.telefono ? '<p class="muted small no-print">Para enviarle los turnos por WhatsApp, cargá su teléfono en la ficha.</p>' : '');
     if (!turnos.length) {
       html += UI.empty('calendar', 'Sin turnos', 'Este paciente todavía no tiene turnos asignados.');
     } else {
@@ -461,6 +471,16 @@
     box.innerHTML = html;
     box.querySelector('[data-new]').addEventListener('click', function () {
       KF.Agenda.openForm(null, { pacienteId: p.id, profesionalId: P.profesionalHabitual(p.id) }, KF.App.refresh);
+    });
+    const btnWa = box.querySelector('[data-wa-proximos]');
+    if (btnWa) btnWa.addEventListener('click', function () {
+      KF.Avisos.marcarAvisados(proximos);
+      UI.toast('Se abrió WhatsApp con los turnos listos para enviar');
+    });
+    const btnIcs = box.querySelector('[data-ics]');
+    if (btnIcs) btnIcs.addEventListener('click', function () {
+      KF.Avisos.descargarIcs(proximos, 'profesional', 'turnos-' + U.norm(U.fullName(p)).replace(/[^a-z0-9]+/g, '-'));
+      UI.toast('Archivo de calendario descargado');
     });
     box.querySelectorAll('.row-item').forEach(function (li) {
       const open = function () { KF.Agenda.openDetail(li.dataset.id, KF.App.refresh); };

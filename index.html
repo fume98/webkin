@@ -26,8 +26,10 @@
   <a class="skip-link" href="#main">Saltar al contenido</a>
 
   <header class="mobile-top no-print">
-    <img class="brand-symbol" data-marca="simbolo" alt="" width="40" height="40">
-    <span class="mobile-brand"><span class="wordmark" data-marca="wordmark"></span><small class="brand-tag" data-marca="subtitulo"></small></span>
+    <div class="mobile-brand-wrap" role="button" tabindex="0" data-abrir-marca aria-label="Cambiar logo, nombre y colores" title="Cambiar logo, nombre y colores">
+      <img class="brand-symbol" data-marca="simbolo" alt="" width="40" height="40">
+      <span class="mobile-brand"><span class="wordmark" data-marca="wordmark"></span><small class="brand-tag" data-marca="subtitulo"></small></span>
+    </div>
     <button type="button" class="sync-dot" id="sync-dot" hidden></button>
     <button class="btn-icon" id="btn-lock-m" aria-label="Bloquear con clave" title="Bloquear con clave"></button>
   </header>
@@ -35,8 +37,11 @@
   <div class="layout">
     <aside class="sidebar no-print">
       <div class="brand">
-        <img class="brand-logo" data-marca="logo" alt="" hidden>
-        <div class="brand-name" data-marca="nombre-bloque" hidden></div>
+        <div class="brand-edit" role="button" tabindex="0" data-abrir-marca aria-label="Cambiar logo, nombre y colores" title="Cambiar logo, nombre y colores">
+          <img class="brand-logo" data-marca="logo" alt="" hidden>
+          <div class="brand-name" data-marca="nombre-bloque" hidden></div>
+          <span class="brand-edit-hint" aria-hidden="true">Cambiar logo y colores</span>
+        </div>
         <small id="brand-sub">Kinesiología y Fisiatría</small>
         <button class="btn-icon" id="btn-lock" aria-label="Bloquear con clave" title="Bloquear con clave"></button>
       </div>
@@ -77,6 +82,7 @@
   <script src="js/store.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/marca-ui.js"></script>
+  <script src="js/avisos.js"></script>
   <script src="js/vendor/supabase.js"></script>
   <script src="js/config.js"></script>
   <script src="js/nube.js"></script>

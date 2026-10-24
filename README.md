@@ -23,7 +23,9 @@ No necesita instalación ni servidor: son archivos HTML, CSS y JavaScript que fu
 - Dar varias sesiones de una vez (por ejemplo, 10 sesiones lunes y miércoles a las 18 hs).
 - Estados: Pendiente, Confirmado, Asistió, No vino, Cancelado. Al marcar "Asistió" se abre la carga de la evolución.
 - Aviso de superposición de horarios.
-- Recordatorio por WhatsApp con el mensaje ya escrito.
+- **Turnos por WhatsApp:** al dar un turno (o una serie de sesiones) aparece la opción de enviárselo al paciente por WhatsApp con el mensaje ya escrito: fecha, hora, profesional, dirección y un link para que lo agende en su Google Calendar. Queda registrado qué turnos se avisaron.
+- **Recordatorio por WhatsApp** de cada turno, y envío de todos los próximos turnos desde la ficha del paciente.
+- **Google Calendar:** cada turno se puede agregar al calendario del profesional con un toque. Las series de sesiones se descargan en un archivo de calendario (.ics) que se abre en Google Calendar, iPhone u Outlook, con un aviso 2 horas antes.
 
 **Varios profesionales**
 - Cada profesional del consultorio tiene su propia agenda, con un color para distinguirla, y puede tener su propio horario, duración de turno y valor de sesión.
@@ -114,7 +116,7 @@ Hay dos formas:
 
 ## Marca y colores
 
-Cada consultorio puede ponerle su propia identidad a la app desde **Ajustes → Marca y colores → Personalizar**, sin tocar código:
+Cada consultorio puede ponerle su propia identidad a la app **tocando el logo** (arriba en la barra lateral, o el nombre en el celular) o desde **Ajustes → Marca y colores → Personalizar**, sin tocar código:
 - **Nombre y subtítulo** del consultorio. Se ven en la app, en la pestaña del navegador, en los recibos y en los recordatorios de WhatsApp.
 - **Logo:** PNG con fondo transparente o con fondo negro (esto último se detecta solo). Si no hay logo, se muestra el nombre con un ícono.
 - **Ícono:** opcional, para el celular y la pestaña del navegador.
@@ -174,6 +176,7 @@ js/ajustes.js         Configuración, profesionales, nube y copias de seguridad
 js/marca.js           Marca de fábrica de la instalación (nombre, logo y colores)
 js/tema.js            Calcula los colores del diseño a partir de los de la marca
 js/marca-ui.js        Aplica la marca y editor "Marca y colores"
+js/avisos.js          Mensajes de WhatsApp, Google Calendar y archivos .ics
 js/nube.js            Ingreso y sincronización con Supabase
 js/config.js          Datos de conexión con Supabase
 js/vendor/supabase.js Librería oficial de Supabase (licencia MIT)

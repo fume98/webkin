@@ -200,6 +200,13 @@
     });
     window.addEventListener('hashchange', onRoute);
     KF.Nube.alCambiarEstado(App.mostrarEstadoNube);
+
+    /* Tocar el logo o el nombre abre el editor de marca y colores */
+    document.querySelectorAll('[data-abrir-marca]').forEach(function (el) {
+      const abrir = function () { if (listo && !locked) KF.Marca.abrirEditor(App.refresh); };
+      el.addEventListener('click', abrir);
+      el.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); abrir(); } });
+    });
     document.getElementById('sync-dot').addEventListener('click', function () {
       const info = ESTADOS_NUBE[KF.Nube.estado().tipo];
       if (info) KF.UI.toast(info.texto + (KF.Nube.usuario() ? ' · ' + KF.Nube.usuario() : ''), KF.Nube.estado().tipo === 'ok' ? 'ok' : 'error');

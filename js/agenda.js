@@ -103,6 +103,7 @@
           (!compact && t.motivo ? (n ? ' · ' : '') + U.esc(t.motivo) : '') + '</small>' +
         (!profSel && UI.hayVariosProfesionales() ? UI.profTag(t.profesionalId, compact ? 'sm' : '') : '') +
       '</span>' +
+      (t.avisadoWhatsApp && !compact ? '<span class="t-avisado" title="Turno enviado por WhatsApp">' + U.icon('whatsapp') + '</span>' : '') +
       (compact ? '' : UI.estadoBadge(t.estado)) +
     '</button>';
   }
@@ -272,10 +273,12 @@
           }
         }
         if (id) d.id = id;
-        S.saveTurno(d);
-        UI.toast(id ? 'Turno actualizado' : 'Turno asignado para el ' + U.fmtDate(d.fecha) + ' a las ' + d.hora);
+        const guardado = S.saveTurno(d);
         fechaSel = d.fecha;
         if (onSaved) onSaved();
+        if (id) UI.toast('Turno actualizado');
+        /* Turno nuevo: se ofrece avisar al paciente y agendarlo (después de cerrar este formulario) */
+        else setTimeout(function () { KF.Avisos.mostrarOtorgados([guardado.id], onSaved); }, 0);
       }
     });
   };
@@ -290,14 +293,15 @@
       guard++;
     }
     let choques = 0;
+    const ids = [];
     fechas.forEach(function (fecha) {
       if (S.turnoSuperpuesto(fecha, base.hora, base.duracion, null, base.profesionalId)) choques++;
-      S.saveTurno(Object.assign({}, base, { fecha: fecha }));
+      ids.push(S.saveTurno(Object.assign({}, base, { fecha: fecha })).id);
     });
-    UI.toast('Se asignaron ' + fechas.length + ' turnos (' + U.fmtDate(fechas[0]) + ' al ' + U.fmtDate(fechas[fechas.length - 1]) + ')');
     if (choques) UI.toast(choques + (choques === 1 ? ' turno se superpone' : ' turnos se superponen') + ' con otros. Revisá la agenda.', 'error');
     fechaSel = fechas[0];
     if (onSaved) onSaved();
+    setTimeout(function () { KF.Avisos.mostrarOtorgados(ids, onSaved); }, 0);
   }
 
   /* ================= Detalle del turno ================= */
@@ -306,18 +310,11 @@
     if (!t) return;
     const p = S.paciente(t.pacienteId);
     const n = S.numeroSesion(t);
-    const set = S.settings;
     const prof = S.profesional(t.profesionalId);
     const pagos = S.pagos().filter(function (x) { return x.turnoId === t.id; });
 
-    const marca = KF.Marca.actual();
-    const consultorio = marca.nombre + (marca.subtitulo ? ' - ' + marca.subtitulo.replace(/\s*·\s*/g, ' ') : '');
-    const msg = 'Hola ' + (p ? p.nombre : '') + '! Te recuerdo tu turno en ' + consultorio + ' el ' +
-      U.fmtDateLong(t.fecha).toLowerCase() + ' a las ' + t.hora + ' hs' +
-      (prof && UI.hayVariosProfesionales() ? ' con ' + prof.nombre : '') +
-      (set.direccion ? ' en ' + set.direccion : '') + '. Por favor confirmá tu asistencia. ' +
-      '\n' + (prof ? prof.nombre + ' · ' : '') + consultorio;
-    const wa = p ? U.waLink(p.telefono, msg) : '';
+    const wa = p ? U.waLink(p.telefono, KF.Avisos.mensajeRecordatorio(t)) : '';
+    const waConfirmar = p ? U.waLink(p.telefono, KF.Avisos.mensajeConfirmacion([t])) : '';
 
     const body =
       '<div class="turno-detail">' +
@@ -337,6 +334,8 @@
             : '<span class="muted">Sin pago asociado</span>') + '</dd></div>' +
           (t.motivo ? '<div class="info full"><dt>Motivo</dt><dd>' + U.esc(t.motivo) + '</dd></div>' : '') +
           (t.notas ? '<div class="info full"><dt>Notas</dt><dd>' + U.nl2br(t.notas) + '</dd></div>' : '') +
+          (t.avisadoWhatsApp ? '<div class="info full"><dt>Aviso</dt><dd>' + U.icon('whatsapp') + ' Enviado por WhatsApp el ' +
+            U.fmtDate(U.toISODate(new Date(t.avisadoWhatsApp))) + '</dd></div>' : '') +
         '</dl>' +
         '<h4>¿Cómo resultó el turno?</h4>' +
         '<div class="estado-buttons">' +
@@ -348,7 +347,9 @@
         '<div class="quick-actions">' +
           '<button type="button" class="btn btn-secondary" data-q="evolucion">' + U.icon('activity') + 'Cargar evolución</button>' +
           '<button type="button" class="btn btn-secondary" data-q="pago">' + U.icon('dollar') + 'Registrar pago</button>' +
-          (wa ? '<a class="btn btn-wa" href="' + U.esc(wa) + '" target="_blank" rel="noopener">' + U.icon('whatsapp') + 'Recordatorio por WhatsApp</a>' : '') +
+          (waConfirmar ? '<a class="btn btn-wa" href="' + U.esc(waConfirmar) + '" target="_blank" rel="noopener" data-q="wa-confirmar">' + U.icon('whatsapp') + 'Enviar turno por WhatsApp</a>' : '') +
+          (wa ? '<a class="btn btn-secondary" href="' + U.esc(wa) + '" target="_blank" rel="noopener" data-q="wa-recordar">' + U.icon('whatsapp') + 'Recordatorio por WhatsApp</a>' : '') +
+          '<a class="btn btn-secondary" href="' + U.esc(KF.Avisos.linkGoogle(t, 'profesional')) + '" target="_blank" rel="noopener">' + U.icon('calendar') + 'Agregar a Google Calendar</a>' +
           (p ? '<a class="btn btn-ghost" href="#/paciente/' + U.esc(p.id) + '" data-q="ficha">' + U.icon('user') + 'Ver ficha</a>' : '') +
         '</div>' +
       '</div>';
@@ -392,6 +393,7 @@
       KF.Pagos.openForm(null, { pacienteId: t.pacienteId, turnoId: t.id, fecha: t.fecha, profesionalId: t.profesionalId }, onChange);
     });
     q('ficha', function () { UI.closeModal(); });
+    q('wa-confirmar', function () { KF.Avisos.marcarAvisados([t]); if (onChange) onChange(); });
     q('editar', function () { UI.closeModal(); A.openForm(t.id, null, onChange); });
     q('borrar', function () {
       UI.confirm({
