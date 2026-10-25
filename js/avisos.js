@@ -30,6 +30,12 @@
     return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
   }
 
+  /* "de Quiropraxia" (solo si el consultorio tiene más de un servicio) */
+  function deServicio(t) {
+    const sv = S.servicio(t.servicio);
+    return sv && UI().hayVariosServicios() ? ' de ' + sv.nombre : '';
+  }
+
   function consultorio() {
     const m = KF.Marca.actual();
     return m.nombre + (m.subtitulo ? ' - ' + m.subtitulo.replace(/\s*·\s*/g, ' ') : '');
@@ -47,7 +53,7 @@
     const n = S.numeroSesion(t);
     if (para === 'profesional') {
       return {
-        titulo: 'Turno: ' + U.fullName(p) + (n ? ' (sesión ' + n + ')' : ''),
+        titulo: (deServicio(t) ? S.servicio(t.servicio).nombre + ': ' : 'Turno: ') + U.fullName(p) + (n ? ' (sesión ' + n + ')' : ''),
         detalle: [
           p && p.telefono ? 'Teléfono: ' + p.telefono : '',
           t.motivo ? 'Motivo: ' + t.motivo : '',
@@ -58,7 +64,7 @@
       };
     }
     return {
-      titulo: 'Turno en ' + KF.Marca.actual().nombre,
+      titulo: 'Turno' + deServicio(t) + ' en ' + KF.Marca.actual().nombre,
       detalle: [
         prof ? 'Con ' + prof.nombre + (prof.especialidad ? ' (' + prof.especialidad + ')' : '') : '',
         t.motivo ? t.motivo : '',
@@ -137,13 +143,16 @@
     const profs = lista.map(function (t) { return t.profesionalId; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
     const prof = profs.length === 1 ? S.profesional(profs[0]) : null;
     const partes = ['Hola ' + (p ? p.nombre : '') + '! '];
+    const servs = lista.map(function (t) { return t.servicio; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    const mismoServicio = servs.length === 1;
     if (lista.length === 1) {
-      partes.push('Te confirmo tu turno en ' + consultorio() + ':\n\n');
+      partes.push('Te confirmo tu turno' + deServicio(t0) + ' en ' + consultorio() + ':\n\n');
       partes.push('📅 ' + lineaTurno(t0, true) + '\n');
     } else {
-      partes.push('Te confirmo tus ' + lista.length + ' turnos en ' + consultorio() + ':\n\n');
+      partes.push('Te confirmo tus ' + lista.length + ' turnos' + (mismoServicio ? deServicio(t0) : '') + ' en ' + consultorio() + ':\n\n');
       lista.forEach(function (t, i) {
-        partes.push((i + 1) + '. ' + U.cap(U.DIAS[U.parseDate(t.fecha).getDay()]) + ' ' + lineaTurno(t) + '\n');
+        partes.push((i + 1) + '. ' + U.cap(U.DIAS[U.parseDate(t.fecha).getDay()]) + ' ' + lineaTurno(t) +
+          (!mismoServicio && deServicio(t) ? ' (' + S.servicio(t.servicio).nombre + ')' : '') + '\n');
       });
     }
     if (prof) partes.push('👤 Con ' + prof.nombre + '\n');
@@ -159,7 +168,7 @@
     const p = S.paciente(t.pacienteId);
     const prof = S.profesional(t.profesionalId);
     const set = S.settings;
-    return 'Hola ' + (p ? p.nombre : '') + '! Te recuerdo tu turno en ' + consultorio() + ' el ' +
+    return 'Hola ' + (p ? p.nombre : '') + '! Te recuerdo tu turno' + deServicio(t) + ' en ' + consultorio() + ' el ' +
       U.fmtDateLong(t.fecha).toLowerCase() + ' a las ' + t.hora + ' hs' +
       (prof && UI().hayVariosProfesionales() ? ' con ' + prof.nombre : '') +
       (set.direccion ? ' en ' + set.direccion : '') + '. Por favor confirmá tu asistencia.' +
@@ -186,7 +195,7 @@
     const body =
       '<div class="otorgado">' +
         '<div class="otorgado-ok">' + U.icon('check') + '</div>' +
-        '<p class="otorgado-titulo">' + (varios ? 'Se dieron ' + turnos.length + ' turnos' : 'Turno otorgado') +
+        '<p class="otorgado-titulo">' + (varios ? 'Se dieron ' + turnos.length + ' turnos' : 'Turno' + deServicio(t0) + ' otorgado') +
           ' a <strong>' + U.esc(U.fullName(p)) + '</strong></p>' +
         '<ul class="otorgado-lista">' + turnos.slice(0, 12).map(function (t) {
           return '<li>' + U.icon('calendar') + U.esc(U.fmtDateLong(t.fecha)) + ' · ' + U.esc(t.hora) + ' hs</li>';

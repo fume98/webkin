@@ -5,15 +5,32 @@
   const U = KF.U;
   const S = KF.Store;
 
-  const NAV = [
-    { route: 'inicio', label: 'Inicio', icon: 'home' },
-    { route: 'agenda', label: 'Agenda', icon: 'calendar' },
-    { route: 'pacientes', label: 'Pacientes', icon: 'users' },
-    { route: 'pagos', label: 'Pagos', icon: 'wallet' },
-    { route: 'ajustes', label: 'Ajustes', icon: 'settings' }
-  ];
-
   const App = {};
+
+  App.iconoServicio = function (sv) {
+    if (!sv) return 'calendar';
+    if (sv.id === 'kinesiologia' || /kines/i.test(sv.nombre)) return 'logo';
+    if (sv.id === 'quiropraxia' || /quiro/i.test(sv.nombre)) return 'columna';
+    return 'calendar';
+  };
+
+  /* Menú: una sección de turnos por cada servicio (Kinesiología, Quiropraxia…) */
+  function navItems(paraCelular) {
+    const servicios = S.servicios();
+    const items = [{ route: 'inicio', label: 'Inicio', icon: 'home' }];
+    if (servicios.length > 1 && !(paraCelular && servicios.length > 3)) {
+      servicios.forEach(function (sv) {
+        items.push({ route: 'agenda/' + sv.id, label: sv.nombre, corto: sv.corto || sv.nombre, icon: App.iconoServicio(sv), grupo: true });
+      });
+    } else {
+      items.push({ route: 'agenda', label: 'Agenda', icon: 'calendar' });
+    }
+    items.push({ route: 'pacientes', label: 'Pacientes', icon: 'users' });
+    items.push({ route: 'pagos', label: 'Pagos', icon: 'wallet' });
+    items.push({ route: 'ajustes', label: 'Ajustes', icon: 'settings' });
+    return items;
+  }
+
   let locked = false;
   let listo = false; /* en modo nube, la app se muestra después de ingresar */
 
@@ -24,15 +41,29 @@
   }
 
   function buildNav() {
-    const html = NAV.map(function (n) {
-      return '<a href="#/' + n.route + '" data-route="' + n.route + '">' + U.icon(n.icon) + '<span>' + n.label + '</span></a>';
+    const enlace = function (n, celular) {
+      return '<a href="#/' + n.route + '" data-route="' + n.route + '">' + U.icon(n.icon) +
+        '<span>' + U.esc(celular && n.corto ? n.corto : n.label) + '</span></a>';
+    };
+    let titulo = false;
+    document.getElementById('side-nav').innerHTML = navItems(false).map(function (n) {
+      let html = '';
+      if (n.grupo && !titulo) { titulo = true; html += '<span class="nav-group">Turnos</span>'; }
+      return html + enlace(n, false);
     }).join('');
-    document.getElementById('side-nav').innerHTML = html;
-    document.getElementById('bottom-nav').innerHTML = html;
+    const cel = navItems(true);
+    const bottom = document.getElementById('bottom-nav');
+    bottom.innerHTML = cel.map(function (n) { return enlace(n, true); }).join('');
+    bottom.style.setProperty('--nav-items', cel.length);
+    bottom.classList.toggle('muchos', cel.length > 5);
+    const r = parseRoute();
+    markNav(r.name, r.id);
   }
+  App.buildNav = buildNav;
 
-  function markNav(name) {
-    const active = name === 'paciente' ? 'pacientes' : name;
+  function markNav(name, id) {
+    let active = name === 'paciente' ? 'pacientes' : name;
+    if (name === 'agenda' && id) active = 'agenda/' + id;
     document.querySelectorAll('[data-route]').forEach(function (a) {
       const on = a.dataset.route === active;
       a.classList.toggle('active', on);
@@ -46,9 +77,9 @@
     const r = parseRoute();
     const main = document.getElementById('main');
     const scroll = window.scrollY;
-    markNav(r.name);
+    markNav(r.name, r.id);
     switch (r.name) {
-      case 'agenda': KF.Agenda.render(main); break;
+      case 'agenda': KF.Agenda.render(main, r.id || ''); break;
       case 'pacientes': KF.Pacientes.renderList(main); break;
       case 'paciente': KF.Pacientes.renderDetail(main, r.id); break;
       case 'pagos': KF.Pagos.render(main); break;
@@ -71,6 +102,7 @@
 
   App.updateBrand = function () {
     KF.Marca.aplicar();
+    buildNav();
     const profs = S.profesionales();
     let sub = 'Kinesiología y Fisiatría';
     if (profs.length > 1) sub = profs.length + ' profesionales';

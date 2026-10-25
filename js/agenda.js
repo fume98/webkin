@@ -10,17 +10,30 @@
   let fechaSel = U.today();
   let vista = 'dia';
   let profSel = ''; /* '' = todos los profesionales */
+  let servSel = ''; /* '' = todos los servicios (agenda general) */
 
   function profFiltro() {
     if (profSel && !S.profesional(profSel)) profSel = '';
+    /* Al pasar a otro servicio, el profesional elegido tiene que atenderlo */
+    if (profSel && servSel && S.serviciosDeProfesional(profSel).indexOf(servSel) < 0) profSel = '';
     return profSel;
+  }
+
+  /* Servicio para un turno nuevo: el de la sección abierta, o el del profesional */
+  function servicioPara(profesionalId) {
+    if (servSel) return servSel;
+    const propios = profesionalId ? S.serviciosDeProfesional(profesionalId) : [];
+    const activos = S.servicios().map(function (x) { return x.id; });
+    return propios.find(function (x) { return activos.indexOf(x) >= 0; }) || S.servicioPrincipal().id;
   }
 
   A.setFecha = function (iso) { fechaSel = iso; };
 
   /* ================= Vista principal ================= */
-  A.render = function (main) {
+  A.render = function (main, servicioId) {
+    if (servicioId !== undefined) servSel = S.servicio(servicioId) ? servicioId : '';
     profFiltro();
+    const sv = S.servicio(servSel);
     const semanaIni = U.startOfWeek(fechaSel);
     const titulo = vista === 'dia'
       ? U.fmtDateLong(fechaSel, true)
@@ -28,10 +41,13 @@
 
     main.innerHTML =
       '<div class="page-head">' +
-        '<div><h1>Agenda de turnos</h1><p class="sub">' + U.esc(titulo) + (fechaSel === U.today() && vista === 'dia' ? ' · Hoy' : '') + '</p></div>' +
-        '<button class="btn btn-primary btn-lg" id="btn-nuevo-turno">' + U.icon('plus') + 'Nuevo turno</button>' +
+        '<div><h1>' + (sv ? 'Turnos de ' + U.esc(sv.nombre) : 'Agenda de turnos') + '</h1>' +
+          '<p class="sub">' + U.esc(titulo) + (fechaSel === U.today() && vista === 'dia' ? ' · Hoy' : '') + '</p></div>' +
+        '<button class="btn btn-primary btn-lg" id="btn-nuevo-turno">' + U.icon('plus') +
+          (sv ? 'Turno de ' + U.esc(sv.nombre) : 'Nuevo turno') + '</button>' +
       '</div>' +
-      UI.profFilter(profSel, 'Todas las agendas') +
+      tabsServicios() +
+      UI.profFilter(profSel, sv ? 'Todos los profesionales' : 'Todas las agendas', servSel) +
       '<div class="agenda-bar">' +
         '<div class="date-nav">' +
           '<button class="btn-icon lg" data-nav="-1" aria-label="Anterior">' + U.icon('chevronLeft') + '</button>' +
@@ -48,7 +64,7 @@
       '<div id="agenda-body"></div>';
 
     main.querySelector('#btn-nuevo-turno').addEventListener('click', function () {
-      A.openForm(null, { fecha: fechaSel, profesionalId: profSel }, KF.App.refresh);
+      A.openForm(null, { fecha: fechaSel, profesionalId: profSel, servicio: servSel }, KF.App.refresh);
     });
     UI.bindProfFilter(main, function (id) { profSel = id; A.render(main); });
     main.querySelectorAll('[data-nav]').forEach(function (b) {
@@ -74,13 +90,26 @@
     else drawWeek(body, semanaIni);
   };
 
+  /* Pestañas Kinesiología | Quiropraxia | Todas (solo si hay más de un servicio) */
+  function tabsServicios() {
+    const lista = S.servicios();
+    if (lista.length < 2) return '';
+    return '<nav class="serv-tabs" aria-label="Servicios">' +
+      lista.map(function (x) {
+        return '<a href="#/agenda/' + U.esc(x.id) + '" class="' + (servSel === x.id ? 'active' : '') + '" style="--serv:' + U.esc(x.color || '#4f5e5b') + '">' +
+          '<i aria-hidden="true"></i>' + U.esc(x.nombre) + '</a>';
+      }).join('') +
+      '<a href="#/agenda" class="todas ' + (!servSel ? 'active' : '') + '">Todas</a>' +
+    '</nav>';
+  }
+
   function weekStrip(ini) {
     const hoy = U.today();
     let html = '<div class="week-strip">';
     for (let i = 0; i < 7; i++) {
       const f = U.addDays(ini, i);
       const d = U.parseDate(f);
-      const n = S.turnosDelDia(f, profSel).filter(function (t) { return t.estado !== 'cancelado'; }).length;
+      const n = S.turnosDelDia(f, profSel, servSel).filter(function (t) { return t.estado !== 'cancelado'; }).length;
       html += '<button data-fecha="' + f + '" class="' + (f === fechaSel ? 'sel ' : '') + (f === hoy ? 'today' : '') + '">' +
         '<span class="wd">' + U.DIAS_CORTOS[d.getDay()] + '</span>' +
         '<span class="dn">' + d.getDate() + '</span>' +
@@ -94,7 +123,7 @@
     const p = S.paciente(t.pacienteId);
     const n = S.numeroSesion(t);
     const fin = U.minToTime(U.timeToMin(t.hora) + (Number(t.duracion) || 0));
-    const indic = p && p.sesionesIndicadas ? ' de ' + U.esc(p.sesionesIndicadas) : '';
+    const indic = p && p.sesionesIndicadas && t.servicio === S.servicioPrincipal().id ? ' de ' + U.esc(p.sesionesIndicadas) : '';
     return '<button class="turno-card estado-' + U.esc(t.estado) + (compact ? ' compact' : '') + '" data-turno="' + U.esc(t.id) + '">' +
       '<span class="t-hora"><strong>' + U.esc(t.hora) + '</strong>' + (compact ? '' : '<small>' + fin + '</small>') + '</span>' +
       '<span class="t-info">' +
@@ -102,6 +131,7 @@
         '<small>' + (n && t.estado !== 'cancelado' && t.estado !== 'ausente' ? 'Sesión ' + n + indic : '') +
           (!compact && t.motivo ? (n ? ' · ' : '') + U.esc(t.motivo) : '') + '</small>' +
         (!profSel && UI.hayVariosProfesionales() ? UI.profTag(t.profesionalId, compact ? 'sm' : '') : '') +
+        (!servSel && UI.hayVariosServicios() ? UI.servTag(t.servicio, compact ? 'sm' : '') : '') +
       '</span>' +
       (t.avisadoWhatsApp && !compact ? '<span class="t-avisado" title="Turno enviado por WhatsApp">' + U.icon('whatsapp') + '</span>' : '') +
       (compact ? '' : UI.estadoBadge(t.estado)) +
@@ -115,7 +145,7 @@
   }
 
   function drawDay(box, fecha) {
-    const turnos = S.turnosDelDia(fecha, profSel);
+    const turnos = S.turnosDelDia(fecha, profSel, servSel);
     if (!turnos.length) {
       box.innerHTML = UI.empty('calendar', 'No hay turnos para este día', 'Podés agregar uno con el botón "Nuevo turno" o tocando un horario libre.') +
         freeSlots(fecha);
@@ -126,14 +156,14 @@
     bindCards(box);
     box.querySelectorAll('[data-slot]').forEach(function (b) {
       b.addEventListener('click', function () {
-        A.openForm(null, { fecha: fecha, hora: b.dataset.slot, profesionalId: b.dataset.prof }, KF.App.refresh);
+        A.openForm(null, { fecha: fecha, hora: b.dataset.slot, profesionalId: b.dataset.prof, servicio: servicioPara(b.dataset.prof) }, KF.App.refresh);
       });
     });
   }
 
   /* Horarios libres de cada profesional según su jornada */
   function libresDe(fecha, profesionalId) {
-    const cfg = S.configProfesional(profesionalId);
+    const cfg = S.configProfesional(profesionalId, servicioPara(profesionalId));
     const dur = cfg.duracionTurno;
     let ini = U.timeToMin(cfg.horaInicio);
     const fin = U.timeToMin(cfg.horaFin);
@@ -149,7 +179,7 @@
   }
 
   function freeSlots(fecha) {
-    const profs = profSel ? [S.profesional(profSel)] : S.profesionales();
+    const profs = profSel ? [S.profesional(profSel)] : S.profesionalesDeServicio(servSel);
     const varios = profs.length > 1;
     const grupos = profs.map(function (p) {
       const libres = libresDe(fecha, p.id);
@@ -169,7 +199,7 @@
     for (let i = 0; i < 7; i++) {
       const f = U.addDays(ini, i);
       const d = U.parseDate(f);
-      const turnos = S.turnosDelDia(f, profSel);
+      const turnos = S.turnosDelDia(f, profSel, servSel);
       html += '<section class="week-col' + (f === U.today() ? ' today' : '') + '">' +
         '<h3><button class="linklike" data-dia="' + f + '">' + U.DIAS_CORTOS[d.getDay()] + ' ' + d.getDate() + '</button></h3>' +
         (turnos.length ? turnos.map(function (t) { return turnoCard(t, true); }).join('') : '<p class="muted small">Sin turnos</p>') +
@@ -203,19 +233,26 @@
     }
 
     const pre = Object.assign({}, preset || {});
-    if (!pre.profesionalId) pre.profesionalId = profFiltro() || S.profesionalPrincipal().id;
+    if (!pre.servicio) pre.servicio = servicioPara(pre.profesionalId);
+    if (!pre.profesionalId || S.serviciosDeProfesional(pre.profesionalId).indexOf(pre.servicio) < 0) {
+      const delServicio = S.profesionalesDeServicio(pre.servicio);
+      const filtro = profFiltro();
+      pre.profesionalId = (filtro && delServicio.some(function (p) { return p.id === filtro; }) ? filtro : '') ||
+        (delServicio[0] && delServicio[0].id) || S.profesionalPrincipal().id;
+    }
     const t = id ? S.turno(id) : Object.assign({
       fecha: U.today(),
       hora: '',
-      duracion: S.configProfesional(pre.profesionalId).duracionTurno,
+      duracion: S.configProfesional(pre.profesionalId, pre.servicio).duracionTurno,
       estado: 'pendiente'
     }, pre);
 
     const dias = [1, 2, 3, 4, 5, 6];
     const body =
       '<div class="form-grid">' +
+        UI.servicioCampo(t.servicio, { label: 'Tipo de turno' }) +
         UI.pacienteSelect(t.pacienteId) +
-        UI.profSelect(t.profesionalId, { label: 'Profesional que atiende' }) +
+        UI.profSelect(t.profesionalId, { label: 'Profesional que atiende', servicio: t.servicio }) +
         UI.field({ name: 'fecha', label: 'Fecha', type: 'date', value: t.fecha, required: true }) +
         UI.field({ name: 'hora', label: 'Hora', type: 'time', value: t.hora, required: true, step: 300 }) +
         UI.field({ name: 'duracion', label: 'Duración (minutos)', type: 'number', value: t.duracion, min: 5, step: 5, required: true }) +
@@ -240,16 +277,32 @@
           '</div>' +
         '</details>');
 
+    const svT = S.servicio(t.servicio);
     UI.modal({
-      title: id ? 'Editar turno' : 'Nuevo turno',
+      title: id ? 'Editar turno' : (svT && UI.hayVariosServicios() ? 'Nuevo turno de ' + svT.nombre : 'Nuevo turno'),
       size: 'md',
       body: body,
       submitLabel: id ? 'Guardar cambios' : 'Dar turno',
       onOpen: function (modal) {
-        /* Al cambiar de profesional se sugiere la duración de su turno */
         const prof = modal.querySelector('[name=profesionalId]');
         const dur = modal.querySelector('[name=duracion]');
-        if (!id) prof.addEventListener('change', function () { dur.value = S.configProfesional(prof.value).duracionTurno; });
+        const servicioElegido = function () {
+          const r = modal.querySelector('[name=servicio]:checked') || modal.querySelector('[name=servicio]');
+          return r ? r.value : '';
+        };
+        /* Al cambiar de servicio o de profesional se sugiere la duración que corresponde */
+        const sugerir = function () { if (!id) dur.value = S.configProfesional(prof.value, servicioElegido()).duracionTurno; };
+        prof.addEventListener('change', sugerir);
+        modal.querySelectorAll('input[type=radio][name=servicio]').forEach(function (r) {
+          r.addEventListener('change', function () {
+            /* Solo quedan los profesionales que atienden ese servicio */
+            prof.innerHTML = UI.profOptions(r.value, prof.value);
+            const titulo = modal.querySelector('#modal-title');
+            const sv = S.servicio(r.value);
+            if (!id && titulo && sv) titulo.textContent = 'Nuevo turno de ' + sv.nombre;
+            sugerir();
+          });
+        });
       },
       onSubmit: function (form) {
         const d = UI.formData(form);
@@ -324,11 +377,12 @@
           '<span class="muted">' + (p && p.telefono ? U.esc(p.telefono) : 'Sin teléfono') + '</span></div>' +
         '</div>' +
         '<dl class="info-grid">' +
+          (UI.hayVariosServicios() ? '<div class="info full"><dt>Servicio</dt><dd>' + (UI.servTag(t.servicio) || '—') + '</dd></div>' : '') +
           '<div class="info full"><dt>Profesional</dt><dd>' + (UI.profTag(t.profesionalId) || '—') +
             (prof && prof.especialidad ? ' <span class="muted">' + U.esc(prof.especialidad) + '</span>' : '') + '</dd></div>' +
           '<div class="info"><dt>Fecha</dt><dd>' + U.fmtDateLong(t.fecha, true) + '</dd></div>' +
           '<div class="info"><dt>Horario</dt><dd>' + U.esc(t.hora) + ' a ' + U.minToTime(U.timeToMin(t.hora) + Number(t.duracion || 0)) + ' hs</dd></div>' +
-          '<div class="info"><dt>Sesión</dt><dd>' + (n && t.estado !== 'cancelado' && t.estado !== 'ausente' ? 'N° ' + n + (p && p.sesionesIndicadas ? ' de ' + U.esc(p.sesionesIndicadas) : '') : '—') + '</dd></div>' +
+          '<div class="info"><dt>Sesión</dt><dd>' + (n && t.estado !== 'cancelado' && t.estado !== 'ausente' ? 'N° ' + n + (p && p.sesionesIndicadas && t.servicio === S.servicioPrincipal().id ? ' de ' + U.esc(p.sesionesIndicadas) : '') : '—') + '</dd></div>' +
           '<div class="info"><dt>Pago</dt><dd>' + (pagos.length
             ? pagos.map(function (x) { return U.fmtMoney(x.monto) + ' (' + U.esc(x.forma) + ')'; }).join('<br>')
             : '<span class="muted">Sin pago asociado</span>') + '</dd></div>' +
@@ -373,7 +427,7 @@
           const yaTiene = S.evolucionesDePaciente(p.id).some(function (e) { return e.turnoId === t.id; });
           if (!yaTiene) {
             KF.Pacientes.openEvolucion(p.id, null, onChange, {
-              fecha: t.fecha, turnoId: t.id, profesionalId: t.profesionalId, sesionNro: S.numeroSesion(S.turno(t.id)) || ''
+              fecha: t.fecha, turnoId: t.id, profesionalId: t.profesionalId, servicio: t.servicio, sesionNro: S.numeroSesion(S.turno(t.id)) || ''
             });
           }
         }
@@ -386,11 +440,11 @@
     };
     q('evolucion', function () {
       UI.closeModal();
-      KF.Pacientes.openEvolucion(t.pacienteId, null, onChange, { fecha: t.fecha, turnoId: t.id, profesionalId: t.profesionalId, sesionNro: n || '' });
+      KF.Pacientes.openEvolucion(t.pacienteId, null, onChange, { fecha: t.fecha, turnoId: t.id, profesionalId: t.profesionalId, servicio: t.servicio, sesionNro: n || '' });
     });
     q('pago', function () {
       UI.closeModal();
-      KF.Pagos.openForm(null, { pacienteId: t.pacienteId, turnoId: t.id, fecha: t.fecha, profesionalId: t.profesionalId }, onChange);
+      KF.Pagos.openForm(null, { pacienteId: t.pacienteId, turnoId: t.id, fecha: t.fecha, profesionalId: t.profesionalId, servicio: t.servicio }, onChange);
     });
     q('ficha', function () { UI.closeModal(); });
     q('wa-confirmar', function () { KF.Avisos.marcarAvisados([t]); if (onChange) onChange(); });

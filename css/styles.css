@@ -698,6 +698,49 @@ strong { font-weight: 700; }
 .t-avisado { color: var(--wa); display: inline-grid; place-items: center; }
 .t-avisado .icon { width: 1.1rem; height: 1.1rem; }
 
+/* ---------------- Servicios (Kinesiología, Quiropraxia…) ---------------- */
+.nav-group {
+  display: block; margin: .6rem .9rem .2rem; font-size: .7rem; font-weight: 800; letter-spacing: .1em;
+  text-transform: uppercase; color: color-mix(in srgb, var(--side-fg) 45%, transparent);
+}
+.serv-tag {
+  display: inline-flex; align-items: center; align-self: flex-start; gap: .3rem; max-width: 100%;
+  font-size: .76rem; font-weight: 800; line-height: 1.2; padding: .12rem .55rem; border-radius: 99px;
+  color: color-mix(in srgb, var(--serv) 85%, black); background: color-mix(in srgb, var(--serv) 14%, white);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.serv-tag.sm { font-size: .7rem; padding: .05rem .45rem; }
+.t-info .serv-tag, .row-main .serv-tag { margin-top: .25rem; }
+.serv-tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; }
+.serv-tabs a {
+  display: inline-flex; align-items: center; gap: .45rem; min-height: 2.8rem; padding: .4rem 1.1rem;
+  border-radius: var(--radius-sm); border: 1.5px solid var(--border-strong); background: var(--surface);
+  color: var(--text-2); font-weight: 800; text-decoration: none;
+}
+.serv-tabs a i { width: .75rem; height: .75rem; border-radius: 50%; background: var(--serv); }
+.serv-tabs a:hover { border-color: var(--serv, var(--primary)); }
+.serv-tabs a.active { background: var(--serv, var(--black)); border-color: var(--serv, var(--black)); color: #fff; }
+.serv-tabs a.active i { background: #fff; }
+.serv-tabs a.todas.active { background: var(--black); border-color: var(--black); color: var(--side-fg); }
+.serv-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .5rem; }
+.serv-opt { position: relative; }
+.serv-opt input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.serv-opt span {
+  display: flex; align-items: center; justify-content: center; min-height: 3.2rem; padding: .5rem .8rem; text-align: center;
+  border-radius: var(--radius-sm); border: 2px solid var(--border-strong); background: var(--surface);
+  font-weight: 800; font-size: 1.02rem; color: var(--text-2); cursor: pointer;
+}
+.serv-opt input:checked + span { background: var(--serv); border-color: var(--serv); color: #fff; }
+.serv-opt input:focus-visible + span { box-shadow: var(--focus); }
+.serv-list { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: .6rem; }
+.serv-item {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  border: 1px solid var(--border); border-left: 5px solid var(--serv); border-radius: var(--radius-sm); padding: .85rem 1rem;
+}
+.serv-item.inactive { opacity: .65; }
+.serv-item .prof-info { flex: 1 1 14rem; }
+.check-group { display: flex; flex-wrap: wrap; gap: .45rem; }
+
 /* ---------------- Profesionales ---------------- */
 .prof-tag {
   display: inline-flex; align-items: center; gap: .35rem; align-self: flex-start;
@@ -708,6 +751,7 @@ strong { font-weight: 700; }
 .prof-tag.sm { font-size: .76rem; margin-top: .15rem; }
 .t-info .prof-tag, .row-main .prof-tag { margin-top: .2rem; }
 .table .prof-tag { white-space: normal; }
+.td-val { min-width: 0; overflow-wrap: anywhere; }
 .bd-row > span { min-width: 0; }
 
 .prof-filter { display: flex; flex-wrap: wrap; gap: .45rem; margin-bottom: 1rem; }
@@ -825,7 +869,7 @@ strong { font-weight: 700; }
   .main { padding: 1.2rem 1rem calc(6rem + env(safe-area-inset-bottom)); }
 
   .bottom-nav {
-    display: grid; grid-template-columns: repeat(5, 1fr);
+    display: grid; grid-template-columns: repeat(var(--nav-items, 5), minmax(0, 1fr));
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
     background: var(--black);
     padding: .35rem .25rem calc(.35rem + env(safe-area-inset-bottom));
@@ -836,6 +880,9 @@ strong { font-weight: 700; }
     padding: .4rem .1rem; border-radius: 10px; text-decoration: none;
     color: color-mix(in srgb, var(--side-fg) 70%, transparent); font-size: .74rem; font-weight: 700;
   }
+  .bottom-nav a span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bottom-nav.muchos a { font-size: .68rem; padding-left: 0; padding-right: 0; letter-spacing: -.01em; }
+  .bottom-nav.muchos a .icon { width: 1.45rem; height: 1.45rem; }
   .bottom-nav a .icon { width: 1.55rem; height: 1.55rem; }
   .bottom-nav a.active { color: #fff; background: var(--primary); }
 
@@ -932,6 +979,10 @@ strong { font-weight: 700; }
   @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } }
 
   .tl-actions { justify-content: flex-start; }
+  .serv-tabs { flex-wrap: nowrap; gap: .3rem; }
+  .serv-tabs a { flex: 1 1 0; min-width: 0; justify-content: center; padding: .4rem .45rem; font-size: .9rem; }
+  .serv-tabs a.todas { flex: 0 0 auto; }
+  .serv-tabs a i { flex-shrink: 0; }
   .colores-grid { grid-template-columns: minmax(0, 1fr); }
   .paleta { min-width: 0; flex: 1 1 6rem; }
   .prof-filter { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -1rem 1rem; padding: 0 1rem .2rem; }

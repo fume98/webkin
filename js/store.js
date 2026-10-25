@@ -44,6 +44,13 @@
   /* Colores para distinguir la agenda de cada profesional */
   const COLORES_PROF = ['#0b7f7c', '#5f6e22', '#2f6f9f', '#7a4f9a', '#c0573e', '#a07800', '#b0457a', '#4f5e5b'];
 
+  /* Servicios que ofrece el consultorio: cada uno tiene su propia sección de turnos */
+  const SERVICIOS_DEFAULT = [
+    { id: 'kinesiologia', nombre: 'Kinesiología', corto: 'Kinesio', color: '#0b7f7c', duracionTurno: '', precioSesion: '', activo: true },
+    { id: 'quiropraxia', nombre: 'Quiropraxia', corto: 'Quiro', color: '#7a4f9a', duracionTurno: '', precioSesion: '', activo: true }
+  ];
+  const COLORES_SERV = ['#0b7f7c', '#7a4f9a', '#c0573e', '#2f6f9f', '#a07800', '#b0457a', '#5f6e22', '#4f5e5b'];
+
   const DEFAULT_SETTINGS = {
     profesional: '',
     titulo: 'Lic. en Kinesiología y Fisiatría',
@@ -110,7 +117,47 @@
       if (!Array.isArray(out[k])) out[k] = [];
     });
     migrarProfesionales(out);
+    migrarServicios(out);
     return out;
+  }
+
+  /* Servicios de un profesional: si no eligió ninguno, atiende todos */
+  function serviciosDeProf(prof, servicios) {
+    const ids = servicios.map(function (x) { return x.id; });
+    const propios = prof && Array.isArray(prof.servicios) ? prof.servicios.filter(function (x) { return ids.indexOf(x) >= 0; }) : [];
+    return propios.length ? propios : ids;
+  }
+
+  /*
+   * Los turnos, sesiones y pagos de versiones anteriores no tenían servicio:
+   * se les asigna el del turno, el único que atiende su profesional, Quiropraxia
+   * si el profesional es quiropráctico, o el primero (Kinesiología).
+   */
+  function migrarServicios(d) {
+    const st = d.settings;
+    if (!Array.isArray(st.servicios) || !st.servicios.length) {
+      st.servicios = JSON.parse(JSON.stringify(SERVICIOS_DEFAULT));
+    }
+    const servicios = st.servicios;
+    const primero = servicios[0].id;
+    const tieneQuiro = servicios.some(function (x) { return x.id === 'quiropraxia'; });
+    const profs = {};
+    d.profesionales.forEach(function (p) { profs[p.id] = p; });
+    const deduce = function (x) {
+      const prof = profs[x.profesionalId];
+      const propios = serviciosDeProf(prof, servicios);
+      if (propios.length === 1) return propios[0];
+      if (tieneQuiro && prof && /quiro/i.test(prof.especialidad || '') && !/kines/i.test(prof.especialidad || '')) return 'quiropraxia';
+      return primero;
+    };
+    const porTurno = {};
+    d.turnos.forEach(function (t) {
+      if (!t.servicio) t.servicio = deduce(t);
+      porTurno[t.id] = t.servicio;
+    });
+    ['evoluciones', 'pagos'].forEach(function (k) {
+      d[k].forEach(function (x) { if (!x.servicio) x.servicio = porTurno[x.turnoId] || deduce(x); });
+    });
   }
 
   /*
@@ -217,7 +264,11 @@
     /* Aplica un registro que llegó de la nube (null = borrado) */
     aplicarRegistro: function (coleccion, id, rec) {
       if (coleccion === 'consultorio') {
+        const servicios = data.settings.servicios;
         data.settings = Object.assign({}, DEFAULT_SETTINGS, rec || {}, pick(data.settings, DEVICE_KEYS));
+        if (!Array.isArray(data.settings.servicios) || !data.settings.servicios.length) {
+          data.settings.servicios = servicios || JSON.parse(JSON.stringify(SERVICIOS_DEFAULT));
+        }
       } else if (COLECCIONES.indexOf(coleccion) >= 0) {
         const list = data[coleccion];
         const idx = list.findIndex(function (x) { return x.id === id; });
@@ -252,19 +303,51 @@
       return data.profesionales.filter(function (p) { return incluirInactivos || p.activo !== false; });
     },
     profesional: function (id) { return get('profesionales', id); },
+    /* ---------- Servicios ---------- */
+    COLORES_SERV: COLORES_SERV,
+    servicios: function (incluirInactivos) {
+      return (data.settings.servicios || []).filter(function (x) { return incluirInactivos || x.activo !== false; });
+    },
+    servicio: function (id) {
+      return (data.settings.servicios || []).find(function (x) { return x.id === id; }) || null;
+    },
+    servicioPrincipal: function () {
+      return S.servicios()[0] || data.settings.servicios[0];
+    },
+    saveServicios: function (lista) {
+      S.saveSettings({ servicios: lista });
+    },
+    serviciosDeProfesional: function (profId) {
+      return serviciosDeProf(S.profesional(profId), S.servicios(true));
+    },
+    /* Profesionales activos que atienden un servicio */
+    profesionalesDeServicio: function (servicioId) {
+      return S.profesionales().filter(function (p) {
+        return !servicioId || S.serviciosDeProfesional(p.id).indexOf(servicioId) >= 0;
+      });
+    },
+    usoServicio: function (id) {
+      const f = function (x) { return x.servicio === id; };
+      return { turnos: data.turnos.filter(f).length, pagos: data.pagos.filter(f).length };
+    },
+
     profesionalPrincipal: function () {
       return S.profesionales()[0] || data.profesionales[0];
     },
     saveProfesional: function (p) { return upsert('profesionales', p); },
-    /* Datos de agenda del profesional (con los valores generales como respaldo) */
-    configProfesional: function (id) {
+    /*
+     * Datos de agenda del profesional para un servicio.
+     * Duración y precio: los del servicio, si no los del profesional, si no los generales.
+     */
+    configProfesional: function (id, servicioId) {
       const p = S.profesional(id) || {};
+      const sv = S.servicio(servicioId) || {};
       const st = data.settings;
       return {
-        duracionTurno: Number(p.duracionTurno) || Number(st.duracionTurno) || 45,
+        duracionTurno: Number(sv.duracionTurno) || Number(p.duracionTurno) || Number(st.duracionTurno) || 45,
         horaInicio: p.horaInicio || st.horaInicio || '08:00',
         horaFin: p.horaFin || st.horaFin || '20:00',
-        precioSesion: Number(p.precioSesion) || Number(st.precioSesion) || 0
+        precioSesion: Number(sv.precioSesion) || Number(p.precioSesion) || Number(st.precioSesion) || 0
       };
     },
     usoProfesional: function (id) {
@@ -303,9 +386,10 @@
       data.pagos.forEach(function (p) { if (p.turnoId === id) p.turnoId = ''; });
       remove('turnos', id);
     },
-    turnosDelDia: function (fecha, profesionalId) {
+    turnosDelDia: function (fecha, profesionalId, servicioId) {
       return data.turnos.filter(function (t) {
-        return t.fecha === fecha && (!profesionalId || t.profesionalId === profesionalId);
+        return t.fecha === fecha && (!profesionalId || t.profesionalId === profesionalId) &&
+          (!servicioId || t.servicio === servicioId);
       })
         .sort(function (a, b) { return a.hora.localeCompare(b.hora); });
     },
@@ -313,10 +397,10 @@
       return data.turnos.filter(function (t) { return t.pacienteId === pacienteId; })
         .sort(function (a, b) { return (a.fecha + a.hora).localeCompare(b.fecha + b.hora); });
     },
-    /* Número de sesión del turno dentro del tratamiento del paciente */
+    /* Número de sesión del turno dentro del tratamiento del paciente (en ese servicio) */
     numeroSesion: function (turno) {
       const lista = S.turnosDePaciente(turno.pacienteId).filter(function (t) {
-        return t.estado !== 'cancelado' && t.estado !== 'ausente';
+        return t.estado !== 'cancelado' && t.estado !== 'ausente' && (t.servicio || '') === (turno.servicio || '');
       });
       const idx = lista.findIndex(function (t) { return t.id === turno.id; });
       return idx >= 0 ? idx + 1 : null;

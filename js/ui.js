@@ -219,10 +219,12 @@
   UI.profSelect = function (selectedId, opts) {
     const o = opts || {};
     const name = o.name || 'profesionalId';
-    const list = KF.Store.profesionales();
+    /* Si se indica un servicio, solo los profesionales que lo atienden */
+    const list = o.servicio ? KF.Store.profesionalesDeServicio(o.servicio) : KF.Store.profesionales();
+    if (!list.length) Array.prototype.push.apply(list, KF.Store.profesionales());
     /* Un turno viejo de una agenda desactivada conserva a su profesional */
     const actual = KF.Store.profesional(selectedId);
-    if (actual && actual.activo === false) list.push(actual);
+    if (actual && !list.some(function (p) { return p.id === actual.id; })) list.push(actual);
     const sel = actual ? selectedId : (list[0] && list[0].id);
     return '<div class="field' + (o.full === false ? '' : ' full') + '">' +
       '<label for="f_' + name + '">' + U.esc(o.label || 'Profesional') + ' <span class="req" aria-hidden="true">*</span></label>' +
@@ -237,8 +239,8 @@
   };
 
   /* Fila de botones para filtrar por profesional ('' = todos) */
-  UI.profFilter = function (selectedId, allLabel) {
-    const list = KF.Store.profesionales();
+  UI.profFilter = function (selectedId, allLabel, servicioId) {
+    const list = KF.Store.profesionalesDeServicio(servicioId);
     if (list.length < 2) return '';
     return '<div class="prof-filter" role="group" aria-label="Filtrar por profesional">' +
       '<button type="button" data-prof="" class="' + (!selectedId ? 'active' : '') + '">' + U.esc(allLabel || 'Todos') + '</button>' +
@@ -247,6 +249,45 @@
           'style="--prof:' + U.esc(p.color || '#4f5e5b') + '"><i aria-hidden="true"></i>' + U.esc(p.nombre) + '</button>';
       }).join('') +
     '</div>';
+  };
+
+  /* Opciones <option> de profesionales para un servicio (para actualizar un select) */
+  UI.profOptions = function (servicioId, selectedId) {
+    let list = KF.Store.profesionalesDeServicio(servicioId);
+    if (!list.length) list = KF.Store.profesionales();
+    const sel = list.some(function (p) { return p.id === selectedId; }) ? selectedId : (list[0] && list[0].id);
+    return list.map(function (p) {
+      return '<option value="' + U.esc(p.id) + '"' + (p.id === sel ? ' selected' : '') + '>' +
+        U.esc(p.nombre) + (p.especialidad ? ' — ' + U.esc(p.especialidad) : '') + '</option>';
+    }).join('');
+  };
+
+  /* ---------- Servicios (Kinesiología, Quiropraxia…) ---------- */
+  UI.hayVariosServicios = function () {
+    return KF.Store.servicios().length > 1;
+  };
+
+  UI.servTag = function (servicioId, extraClass) {
+    const sv = KF.Store.servicio(servicioId);
+    if (!sv) return '';
+    return '<span class="serv-tag ' + (extraClass || '') + '" style="--serv:' + U.esc(sv.color || '#4f5e5b') + '">' + U.esc(sv.nombre) + '</span>';
+  };
+
+  /* Botones grandes para elegir el servicio de un turno o pago */
+  UI.servicioCampo = function (selectedId, opts) {
+    const o = opts || {};
+    const list = KF.Store.servicios();
+    const actual = KF.Store.servicio(selectedId);
+    if (actual && !list.some(function (x) { return x.id === actual.id; })) list.push(actual);
+    const sel = actual ? selectedId : (list[0] && list[0].id);
+    if (list.length < 2) return '<input type="hidden" name="servicio" value="' + U.esc(sel || '') + '">';
+    return '<div class="field full"><label>' + U.esc(o.label || 'Servicio') + '</label>' +
+      '<div class="serv-options" role="radiogroup" aria-label="Servicio">' +
+        list.map(function (x) {
+          return '<label class="serv-opt" style="--serv:' + U.esc(x.color || '#4f5e5b') + '"><input type="radio" name="servicio" value="' + U.esc(x.id) + '"' +
+            (x.id === sel ? ' checked' : '') + '><span>' + U.esc(x.nombre) + '</span></label>';
+        }).join('') +
+      '</div></div>';
   };
 
   UI.bindProfFilter = function (box, onChange) {

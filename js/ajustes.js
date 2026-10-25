@@ -16,6 +16,16 @@
     main.innerHTML =
       '<div class="page-head"><div><h1>Ajustes</h1><p class="sub">Configurá la aplicación a tu medida</p></div></div>' +
 
+      '<section class="panel" id="panel-servicios">' +
+        '<div class="panel-head">' +
+          '<h2>' + U.icon('calendar') + 'Servicios y secciones de turnos</h2>' +
+          '<button type="button" class="btn btn-primary" id="serv-nuevo">' + U.icon('plus') + 'Agregar servicio</button>' +
+        '</div>' +
+        '<p class="muted">Cada servicio tiene su propia sección para dar turnos, con las mismas funciones. ' +
+          'Podés darle una duración y un valor de sesión propios.</p>' +
+        listaServicios() +
+      '</section>' +
+
       '<section class="panel" id="panel-profs">' +
         '<div class="panel-head">' +
           '<h2>' + U.icon('users') + 'Profesionales y agendas</h2>' +
@@ -111,6 +121,14 @@
     bindNube(main);
     main.querySelector('#marca-editar').addEventListener('click', function () {
       KF.Marca.abrirEditor(function () { AJ.render(main); });
+    });
+
+    main.querySelector('#serv-nuevo').addEventListener('click', function () { AJ.openServicio(null, function () { AJ.render(main); }); });
+    main.querySelectorAll('[data-serv-edit]').forEach(function (b) {
+      b.addEventListener('click', function () { AJ.openServicio(b.dataset.servEdit, function () { AJ.render(main); }); });
+    });
+    main.querySelectorAll('[data-serv-toggle]').forEach(function (b) {
+      b.addEventListener('click', function () { cambiarServicio(b.dataset.servToggle, function () { AJ.render(main); }); });
     });
 
     main.querySelector('#prof-nuevo').addEventListener('click', function () { AJ.openProfesional(null, function () { AJ.render(main); }); });
@@ -410,6 +428,7 @@
           '<span class="muted">' + [U.esc(p.especialidad || ''), p.matricula ? 'M.P. ' + U.esc(p.matricula) : ''].filter(Boolean).join(' · ') + '</span>' +
           '<small class="muted">' + U.esc(cfg.horaInicio) + ' a ' + U.esc(cfg.horaFin) + ' hs · turnos de ' + cfg.duracionTurno + ' min' +
             (cfg.precioSesion ? ' · sesión ' + U.fmtMoney(cfg.precioSesion) : '') + ' · ' + uso.turnos + (uso.turnos === 1 ? ' turno' : ' turnos') + '</small>' +
+          (UI.hayVariosServicios() ? '<span class="check-group">' + S.serviciosDeProfesional(p.id).map(function (sid) { return UI.servTag(sid, 'sm'); }).join('') + '</span>' : '') +
         '</div>' +
         '<div class="prof-actions">' +
           '<button type="button" class="btn btn-sm btn-secondary" data-prof-edit="' + U.esc(p.id) + '">' + U.icon('edit') + 'Editar</button>' +
@@ -445,6 +464,16 @@
           '</div>' +
         '</div>' +
       '</div>' +
+      (S.servicios(true).length > 1
+        ? '<div class="field full"><label>Servicios que atiende</label>' +
+            '<div class="check-group" role="group" aria-label="Servicios que atiende">' +
+              S.servicios(true).map(function (sv) {
+                const marcado = S.serviciosDeProfesional(id).indexOf(sv.id) >= 0 || !id;
+                return '<label class="chip"><input type="checkbox" name="servicios" value="' + U.esc(sv.id) + '"' + (marcado ? ' checked' : '') + '>' +
+                  '<span>' + U.esc(sv.nombre) + '</span></label>';
+              }).join('') +
+            '</div><small class="hint">Su agenda aparece en la sección de cada servicio que atienda.</small></div>'
+        : '') +
       '<fieldset class="form-section sub-section"><legend>' + U.icon('clock') + 'Agenda y valores (opcional)</legend>' +
         '<p class="hint">Si los dejás vacíos se usan los valores generales del consultorio (' +
           U.esc(set.horaInicio) + ' a ' + U.esc(set.horaFin) + ' hs, turnos de ' + U.esc(set.duracionTurno) + ' min' +
@@ -471,6 +500,14 @@
           return false;
         }
         d.color = d.color || libre;
+        const marcados = Array.prototype.map.call(form.querySelectorAll('input[name=servicios]:checked'), function (x) { return x.value; });
+        if (form.querySelector('input[name=servicios]')) {
+          if (!marcados.length) { UI.toast('Elegí al menos un servicio que atienda.', 'error'); return false; }
+          /* Si atiende todos se guarda vacío: así también atiende los servicios que se agreguen después */
+          d.servicios = marcados.length === S.servicios(true).length ? [] : marcados;
+        } else {
+          delete d.servicios;
+        }
         if (id) d.id = id;
         else d.activo = true;
         S.saveProfesional(d);
@@ -480,6 +517,124 @@
       }
     });
   };
+
+  /* ================= Servicios ================= */
+  function listaServicios() {
+    return '<ul class="serv-list">' + S.servicios(true).map(function (sv) {
+      const uso = S.usoServicio(sv.id);
+      const inactivo = sv.activo === false;
+      const profs = S.profesionalesDeServicio(sv.id);
+      return '<li class="serv-item' + (inactivo ? ' inactive' : '') + '" style="--serv:' + U.esc(sv.color || '#4f5e5b') + '">' +
+        '<span class="prof-dot" style="--prof:' + U.esc(sv.color || '#4f5e5b') + '" aria-hidden="true">' + U.icon(KF.App.iconoServicio(sv)) + '</span>' +
+        '<div class="prof-info">' +
+          '<strong>' + U.esc(sv.nombre) + (inactivo ? ' <span class="badge">Desactivado</span>' : '') + '</strong>' +
+          '<small class="muted">' +
+            [Number(sv.duracionTurno) ? 'turnos de ' + sv.duracionTurno + ' min' : 'duración de cada profesional',
+              Number(sv.precioSesion) ? 'sesión ' + U.fmtMoney(sv.precioSesion) : '',
+              profs.length + (profs.length === 1 ? ' profesional' : ' profesionales'),
+              uso.turnos + (uso.turnos === 1 ? ' turno' : ' turnos')].filter(Boolean).join(' · ') + '</small>' +
+        '</div>' +
+        '<div class="prof-actions">' +
+          '<button type="button" class="btn btn-sm btn-secondary" data-serv-edit="' + U.esc(sv.id) + '">' + U.icon('edit') + 'Editar</button>' +
+          (inactivo
+            ? '<button type="button" class="btn btn-sm btn-ghost" data-serv-toggle="' + U.esc(sv.id) + '">Reactivar</button>'
+            : (S.servicios().length > 1
+              ? '<button type="button" class="btn btn-sm btn-ghost danger" data-serv-toggle="' + U.esc(sv.id) + '">' + U.icon('trash') +
+                (uso.turnos + uso.pagos ? 'Desactivar' : 'Quitar') + '</button>'
+              : '')) +
+        '</div>' +
+      '</li>';
+    }).join('') + '</ul>';
+  }
+
+  AJ.openServicio = function (id, onSaved) {
+    const lista = S.servicios(true);
+    const usados = lista.map(function (x) { return x.color; });
+    const libre = S.COLORES_SERV.find(function (c) { return usados.indexOf(c) < 0; }) || S.COLORES_SERV[0];
+    const sv = id ? S.servicio(id) : { color: libre };
+    const body =
+      '<div class="form-grid">' +
+        UI.field({ idPrefix: 'sv_', name: 'nombre', label: 'Nombre del servicio', value: sv.nombre, required: true,
+          placeholder: 'Ej: Kinesiología, Quiropraxia, Osteopatía…', attrs: ' autocomplete="off" autofocus' }) +
+        UI.field({ idPrefix: 'sv_', name: 'corto', label: 'Nombre corto (menú del celular)', value: sv.corto,
+          placeholder: 'Ej: Kinesio', attrs: ' maxlength="10"', hint: 'Hasta 10 letras. Si lo dejás vacío se usa el nombre.' }) +
+        UI.field({ idPrefix: 'sv_', name: 'duracionTurno', label: 'Duración del turno (min)', type: 'number', value: sv.duracionTurno, min: 5, step: 5,
+          hint: 'Si lo dejás vacío se usa la de cada profesional.' }) +
+        UI.field({ idPrefix: 'sv_', name: 'precioSesion', label: 'Valor de la sesión ($)', type: 'number', value: sv.precioSesion, min: 0, step: 'any',
+          hint: 'Se sugiere al registrar pagos de este servicio.' }) +
+        '<div class="field full"><label>Color</label>' +
+          '<div class="color-options" role="radiogroup" aria-label="Color del servicio">' +
+            S.COLORES_SERV.map(function (c, i) {
+              return '<label class="color-opt"><input type="radio" name="color" value="' + c + '"' + (sv.color === c ? ' checked' : '') + '>' +
+                '<span style="background:' + c + '"><span class="sr-only">Color ' + (i + 1) + '</span></span></label>';
+            }).join('') +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    UI.modal({
+      title: id ? 'Editar servicio' : 'Agregar servicio',
+      size: 'md',
+      body: body,
+      submitLabel: id ? 'Guardar cambios' : 'Agregar',
+      onSubmit: function (form) {
+        const d = UI.formData(form);
+        const nombre = d.nombre.trim();
+        const repetido = lista.some(function (x) { return x.id !== id && U.norm(x.nombre) === U.norm(nombre); });
+        if (repetido) { UI.toast('Ya existe un servicio con ese nombre.', 'error'); return false; }
+        const datos = {
+          nombre: nombre,
+          corto: (d.corto || '').trim(),
+          duracionTurno: d.duracionTurno ? Number(d.duracionTurno) : '',
+          precioSesion: d.precioSesion ? Number(d.precioSesion) : '',
+          color: d.color || libre
+        };
+        let nueva;
+        if (id) {
+          nueva = lista.map(function (x) { return x.id === id ? Object.assign({}, x, datos) : x; });
+        } else {
+          let base = U.norm(nombre).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'servicio';
+          let nuevoId = base;
+          let i = 2;
+          while (lista.some(function (x) { return x.id === nuevoId; })) nuevoId = base + '-' + (i++);
+          nueva = lista.concat([Object.assign({ id: nuevoId, activo: true }, datos)]);
+        }
+        S.saveServicios(nueva);
+        UI.toast(id ? 'Servicio actualizado' : 'Se agregó la sección de turnos de ' + nombre);
+        KF.App.updateBrand();
+        if (onSaved) onSaved();
+      }
+    });
+  };
+
+  /* Quitar (si no tiene turnos) o desactivar / reactivar un servicio */
+  function cambiarServicio(id, onDone) {
+    const sv = S.servicio(id);
+    const lista = S.servicios(true);
+    if (sv.activo === false) {
+      S.saveServicios(lista.map(function (x) { return x.id === id ? Object.assign({}, x, { activo: true }) : x; }));
+      UI.toast('Servicio reactivado');
+      KF.App.updateBrand();
+      if (onDone) onDone();
+      return;
+    }
+    const uso = S.usoServicio(id);
+    const conDatos = uso.turnos + uso.pagos > 0;
+    UI.confirm({
+      title: conDatos ? 'Desactivar servicio' : 'Quitar servicio',
+      message: conDatos
+        ? sv.nombre + ' tiene ' + uso.turnos + ' turnos registrados. Su sección se va a ocultar y no se le podrán dar turnos nuevos, pero el historial se conserva. Podés reactivarlo cuando quieras.'
+        : '¿Quitar el servicio ' + sv.nombre + '?',
+      confirmLabel: conDatos ? 'Desactivar' : 'Quitar',
+      onConfirm: function () {
+        S.saveServicios(conDatos
+          ? lista.map(function (x) { return x.id === id ? Object.assign({}, x, { activo: false }) : x; })
+          : lista.filter(function (x) { return x.id !== id; }));
+        UI.toast(conDatos ? 'Servicio desactivado' : 'Servicio quitado');
+        KF.App.updateBrand();
+        if (onDone) onDone();
+      }
+    });
+  }
 
   function quitarProfesional(id, onDone) {
     const p = S.profesional(id);

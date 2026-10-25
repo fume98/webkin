@@ -33,9 +33,11 @@
     const total = pagos.reduce(function (s, p) { return s + (Number(p.monto) || 0); }, 0);
     const porForma = {};
     const porProf = {};
+    const porServ = {};
     pagos.forEach(function (p) {
       porForma[p.forma] = (porForma[p.forma] || 0) + (Number(p.monto) || 0);
       porProf[p.profesionalId] = (porProf[p.profesionalId] || 0) + (Number(p.monto) || 0);
+      porServ[p.servicio] = (porServ[p.servicio] || 0) + (Number(p.monto) || 0);
     });
     const mostrarProf = varios && !profSel;
 
@@ -61,8 +63,9 @@
           '<small>' + pagos.length + (pagos.length === 1 ? ' pago' : ' pagos') +
             (profSel ? ' · ' + U.esc(S.profesional(profSel).nombre) : '') + '</small></div>' +
         (pagos.length ? '<div class="summary-breakdown">' +
+          (UI.hayVariosServicios() ? breakdown('Por servicio', porServ, total, function (k) { return UI.servTag(k) || 'Sin asignar'; }) : '') +
           (mostrarProf ? breakdown('Por profesional', porProf, total, function (k) { return UI.profTag(k) || 'Sin asignar'; }) : '') +
-          breakdown(mostrarProf ? 'Por forma de pago' : '', porForma, total, U.esc) +
+          breakdown(mostrarProf || UI.hayVariosServicios() ? 'Por forma de pago' : '', porForma, total, U.esc) +
         '</div>' : '') +
       '</div>' +
       '<div id="pagos-lista"></div>' +
@@ -112,7 +115,8 @@
           '<td data-label="Fecha">' + U.fmtDate(p.fecha) + '</td>' +
           (conPaciente ? '<td data-label="Paciente"><a href="#/paciente/' + U.esc(p.pacienteId) + '">' + U.esc(U.fullName(pac)) + '</a></td>' : '') +
           (varios ? '<td data-label="Profesional">' + UI.profTag(p.profesionalId, 'sm') + '</td>' : '') +
-          '<td data-label="Qué abonó">' + U.esc(det) + (p.notas ? '<br><small class="muted">' + U.esc(p.notas) + '</small>' : '') + '</td>' +
+          '<td data-label="Qué abonó"><div class="td-val">' + (UI.hayVariosServicios() ? UI.servTag(p.servicio, 'sm') + ' ' : '') + U.esc(det) +
+            (p.notas ? '<br><small class="muted">' + U.esc(p.notas) + '</small>' : '') + '</div></td>' +
           '<td data-label="Forma de pago"><span class="badge pay">' + U.esc(p.forma) + '</span></td>' +
           '<td data-label="Monto" class="num"><strong>' + U.fmtMoney(p.monto) + '</strong></td>' +
           '<td class="row-actions no-print">' +
@@ -153,16 +157,20 @@
     if (!pre.profesionalId) {
       pre.profesionalId = pre.pacienteId ? KF.Pacientes.profesionalHabitual(pre.pacienteId) : S.profesionalPrincipal().id;
     }
+    if (!pre.servicio) {
+      pre.servicio = pre.pacienteId ? KF.Pacientes.servicioHabitual(pre.pacienteId) : S.servicioPrincipal().id;
+    }
     const p = id ? S.pago(id) : Object.assign({
       fecha: U.today(),
       forma: 'Efectivo',
       concepto: 'Sesión individual',
       sesiones: 1,
-      monto: S.configProfesional(pre.profesionalId).precioSesion || ''
+      monto: S.configProfesional(pre.profesionalId, pre.servicio).precioSesion || ''
     }, pre);
 
     const body =
       '<div class="form-grid">' +
+        UI.servicioCampo(p.servicio, { label: 'Servicio' }) +
         UI.pacienteSelect(p.pacienteId) +
         UI.profSelect(p.profesionalId, { label: 'Profesional (a quién corresponde el cobro)' }) +
         UI.field({ name: 'fecha', label: 'Fecha de pago', type: 'date', value: p.fecha, required: true }) +
@@ -192,14 +200,20 @@
         const sesiones = modal.querySelector('[name=sesiones]');
         const monto = modal.querySelector('[name=monto]');
         const prof = modal.querySelector('[name=profesionalId]');
-        let precio = S.configProfesional(prof.value).precioSesion;
-        /* Cada profesional puede tener su propio valor de sesión */
-        prof.addEventListener('change', function () {
-          precio = S.configProfesional(prof.value).precioSesion;
+        const servicio = function () {
+          const r = modal.querySelector('[name=servicio]:checked') || modal.querySelector('[name=servicio]');
+          return r ? r.value : '';
+        };
+        let precio = S.configProfesional(prof.value, servicio()).precioSesion;
+        /* Cada servicio y cada profesional pueden tener su propio valor de sesión */
+        const actualizarPrecio = function () {
+          precio = S.configProfesional(prof.value, servicio()).precioSesion;
           if (id || !precio) return;
           if (concepto.value === 'Sesión individual') monto.value = precio;
           else if (concepto.value === 'Paquete de sesiones') monto.value = precio * (Number(sesiones.value) || 0);
-        });
+        };
+        prof.addEventListener('change', actualizarPrecio);
+        modal.querySelectorAll('input[type=radio][name=servicio]').forEach(function (r) { r.addEventListener('change', actualizarPrecio); });
         /* Sugerencias automáticas según el concepto elegido */
         concepto.addEventListener('change', function () {
           if (concepto.value === 'Sesión individual') { sesiones.value = 1; if (precio) monto.value = precio; }
@@ -265,11 +279,11 @@
   }
 
   function exportCSV(pagos) {
-    const rows = [['Fecha', 'Profesional', 'Apellido', 'Nombre', 'DNI', 'Qué abonó', 'Sesiones', 'Forma de pago', 'Monto', 'Observaciones']];
+    const rows = [['Fecha', 'Servicio', 'Profesional', 'Apellido', 'Nombre', 'DNI', 'Qué abonó', 'Sesiones', 'Forma de pago', 'Monto', 'Observaciones']];
     pagos.slice().reverse().forEach(function (p) {
       const pac = S.paciente(p.pacienteId) || {};
       const prof = S.profesional(p.profesionalId) || {};
-      rows.push([U.fmtDate(p.fecha), prof.nombre || '', pac.apellido || '', pac.nombre || '', pac.dni || '', p.concepto || '',
+      rows.push([U.fmtDate(p.fecha), (S.servicio(p.servicio) || {}).nombre || '', prof.nombre || '', pac.apellido || '', pac.nombre || '', pac.dni || '', p.concepto || '',
         p.sesiones || 0, p.forma || '', String(p.monto || 0).replace('.', ','), p.notas || '']);
     });
     const csv = '﻿' + rows.map(function (r) {

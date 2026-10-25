@@ -204,6 +204,7 @@ window.KF = window.KF || {};
     menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
     file: '<path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/>',
     alert: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17.2v.3"/>',
+    columna: '<rect x="9" y="2.5" width="6" height="3.5" rx="1.2"/><rect x="8.5" y="7.5" width="7" height="3.5" rx="1.2"/><rect x="8" y="12.5" width="8" height="3.5" rx="1.2"/><rect x="8.5" y="17.5" width="7" height="4" rx="1.5"/>',
     heart: '<path d="M12 20s-8-4.8-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 9c0 6.2-8 11-8 11z"/>',
     dollar: '<path d="M12 2.5v19M16.5 6.5c-.8-1.3-2.5-2-4.5-2-2.6 0-4.5 1.3-4.5 3.3 0 4.7 9.5 2.4 9.5 7.4 0 2-2 3.3-4.8 3.3-2.2 0-4-.8-5-2.3"/>',
     logo: '<circle cx="12" cy="4.5" r="2"/><path d="M12 7.5v7M12 14.5l-3.5 6.5M12 14.5l3.5 6.5M6 10.5l6-1.5 6 1.5"/>'

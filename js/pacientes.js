@@ -214,7 +214,7 @@
     });
 
     main.querySelector('[data-act=turno]').addEventListener('click', function () {
-      KF.Agenda.openForm(null, { pacienteId: id, profesionalId: P.profesionalHabitual(id) }, KF.App.refresh);
+      KF.Agenda.openForm(null, { pacienteId: id, profesionalId: P.profesionalHabitual(id), servicio: P.servicioHabitual(id) }, KF.App.refresh);
     });
     main.querySelector('[data-act=evolucion]').addEventListener('click', function () {
       P.openEvolucion(id, null, KF.App.refresh);
@@ -300,6 +300,15 @@
     });
   }
 
+  /* Servicio del último turno del paciente (para sugerirlo en sesiones y pagos) */
+  P.servicioHabitual = function (pacienteId) {
+    const hoy = U.today();
+    const turnos = S.turnosDePaciente(pacienteId).filter(function (t) { return t.estado !== 'cancelado'; });
+    const pasados = turnos.filter(function (t) { return t.fecha <= hoy; });
+    const t = pasados[pasados.length - 1] || turnos[0];
+    return t && S.servicio(t.servicio) ? t.servicio : S.servicioPrincipal().id;
+  };
+
   /* Profesional con el que se atiende el paciente (el de su último turno) */
   P.profesionalHabitual = function (pacienteId) {
     const hoy = U.today();
@@ -315,6 +324,7 @@
     return '<div class="panel"><h3>Evolución por sesión</h3>' + evs.map(function (e) {
       const pr = S.profesional(e.profesionalId);
       return '<p><strong>' + U.fmtDate(e.fecha) + (e.sesionNro ? ' — Sesión ' + U.esc(e.sesionNro) : '') + '</strong>' +
+        (UI.hayVariosServicios() && S.servicio(e.servicio) ? ' · ' + U.esc(S.servicio(e.servicio).nombre) : '') +
         (pr ? ' · Atendió: ' + U.esc(pr.nombre) : '') +
         (e.dolor !== '' && e.dolor !== undefined ? ' · Dolor (EVA): ' + U.esc(e.dolor) + '/10' : '') + '<br>' +
         (e.tratamiento ? 'Tratamiento: ' + U.nl2br(e.tratamiento) + '<br>' : '') +
@@ -342,6 +352,7 @@
             '<header>' +
               '<div><strong>' + U.fmtDateLong(e.fecha, true) + '</strong>' +
                 (e.sesionNro ? ' <span class="badge">Sesión ' + U.esc(e.sesionNro) + '</span>' : '') +
+                (UI.hayVariosServicios() ? ' ' + UI.servTag(e.servicio) : '') +
                 (UI.hayVariosProfesionales() ? ' ' + UI.profTag(e.profesionalId) : '') + '</div>' +
               (dolor ? '<span class="eva eva-' + evaLevel(e.dolor) + '" title="Escala visual analógica">Dolor ' + U.esc(e.dolor) + '/10</span>' : '') +
             '</header>' +
@@ -388,6 +399,7 @@
   P.openEvolucion = function (pacienteId, evolucionId, onSaved, preset) {
     const e = evolucionId ? S.evolucion(evolucionId) : Object.assign({ fecha: U.today() }, preset || {});
     if (!e.profesionalId) e.profesionalId = P.profesionalHabitual(pacienteId);
+    if (!e.servicio) e.servicio = P.servicioHabitual(pacienteId);
     if (!evolucionId && !e.sesionNro) {
       const asistidas = S.turnosDePaciente(pacienteId).filter(function (t) { return t.estado === 'asistio'; }).length;
       const cargadas = S.evolucionesDePaciente(pacienteId).length;
@@ -401,6 +413,7 @@
       '<div class="form-grid">' +
         UI.field({ name: 'fecha', label: 'Fecha', type: 'date', value: e.fecha, required: true }) +
         UI.field({ name: 'sesionNro', label: 'N° de sesión', type: 'number', value: e.sesionNro, min: 1, step: 1 }) +
+        UI.servicioCampo(e.servicio) +
         UI.profSelect(e.profesionalId, { label: 'Profesional que atendió' }) +
         '<div class="field full">' +
           '<label for="f_dolor">Dolor del paciente (EVA 0 a 10)</label>' +
@@ -463,14 +476,15 @@
           '<div class="row-main"><strong>' + U.fmtDateLong(t.fecha, true) + ' · ' + U.esc(t.hora) + ' hs</strong>' +
           '<span class="muted">' + (n && t.estado !== 'cancelado' && t.estado !== 'ausente' ? 'Sesión ' + n + (p.sesionesIndicadas ? ' de ' + U.esc(p.sesionesIndicadas) : '') + ' · ' : '') +
           U.esc(t.duracion) + ' min' + (t.motivo ? ' · ' + U.esc(t.motivo) : '') + '</span>' +
-          (UI.hayVariosProfesionales() ? UI.profTag(t.profesionalId, 'sm') : '') + '</div>' +
+          (UI.hayVariosProfesionales() ? UI.profTag(t.profesionalId, 'sm') : '') +
+          (UI.hayVariosServicios() ? UI.servTag(t.servicio, 'sm') : '') + '</div>' +
           UI.estadoBadge(t.estado) +
         '</li>';
       }).join('') + '</ul>';
     }
     box.innerHTML = html;
     box.querySelector('[data-new]').addEventListener('click', function () {
-      KF.Agenda.openForm(null, { pacienteId: p.id, profesionalId: P.profesionalHabitual(p.id) }, KF.App.refresh);
+      KF.Agenda.openForm(null, { pacienteId: p.id, profesionalId: P.profesionalHabitual(p.id), servicio: P.servicioHabitual(p.id) }, KF.App.refresh);
     });
     const btnWa = box.querySelector('[data-wa-proximos]');
     if (btnWa) btnWa.addEventListener('click', function () {

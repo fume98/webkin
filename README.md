@@ -27,6 +27,17 @@ No necesita instalación ni servidor: son archivos HTML, CSS y JavaScript que fu
 - **Recordatorio por WhatsApp** de cada turno, y envío de todos los próximos turnos desde la ficha del paciente.
 - **Google Calendar:** cada turno se puede agregar al calendario del profesional con un toque. Las series de sesiones se descargan en un archivo de calendario (.ics) que se abre en Google Calendar, iPhone u Outlook, con un aviso 2 horas antes.
 
+**Secciones de turnos por servicio (Kinesiología y Quiropraxia)**
+- Cada servicio tiene su propia sección en el menú, con las mismas funciones:
+  - vista por día y por semana, y horarios libres;
+  - filtro por profesional y varias sesiones de una vez;
+  - aviso por WhatsApp, Google Calendar y estados del turno.
+- La pestaña **Todas** muestra la agenda completa del consultorio.
+- **Turnos:** al dar un turno se elige el tipo (Kinesiología o Quiropraxia) y solo aparecen los profesionales que atienden ese servicio. Los turnos, las sesiones y los pagos quedan marcados con su servicio, y las sesiones se numeran por separado en cada uno.
+- **Duración y precio:** cada servicio puede tener los suyos. Si no, se usan los de cada profesional.
+- **Otros servicios:** desde **Ajustes → Servicios** se pueden agregar más (por ejemplo, Osteopatía), y desactivar o quitar los que no se usen.
+- **Pagos** muestra el total cobrado por servicio.
+
 **Varios profesionales**
 - Cada profesional del consultorio tiene su propia agenda, con un color para distinguirla, y puede tener su propio horario, duración de turno y valor de sesión.
 - La agenda se puede ver completa o filtrada por profesional, con los horarios libres de cada uno.
@@ -41,7 +52,7 @@ No necesita instalación ni servidor: son archivos HTML, CSS y JavaScript que fu
 - Resumen mensual por forma de pago, recibo imprimible y planilla descargable para Excel.
 
 **Ajustes**
-- Profesionales del consultorio (agregar, editar, desactivar), datos del consultorio y valores generales de turnos.
+- Servicios y secciones de turnos, profesionales del consultorio (y qué servicios atiende cada uno), datos del consultorio y valores generales de turnos.
 - Tamaño de letra: Normal, Grande o Muy grande.
 - Clave PIN para abrir la aplicación.
 - Base de datos en la nube (Supabase): conexión, usuarios con acceso y estado de sincronización.

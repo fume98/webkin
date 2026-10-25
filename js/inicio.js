@@ -81,7 +81,8 @@
                 '<span class="t-hora"><strong>' + U.esc(t.hora) + '</strong>' + (now ? '<small>Ahora</small>' : '') + '</span>' +
                 '<span class="t-info"><strong>' + U.esc(U.fullName(p)) + '</strong>' +
                 '<small>' + (n && t.estado !== 'ausente' ? 'Sesión ' + n : '') + (t.motivo ? (n ? ' · ' : '') + U.esc(t.motivo) : '') + '</small>' +
-                (varios ? UI.profTag(t.profesionalId, 'sm') : '') + '</span>' +
+                (varios ? UI.profTag(t.profesionalId, 'sm') : '') +
+                (UI.hayVariosServicios() ? UI.servTag(t.servicio, 'sm') : '') + '</span>' +
                 UI.estadoBadge(t.estado) +
               '</button>';
             }).join('') + '</div>'
@@ -95,7 +96,8 @@
               return '<li class="row-item" data-turno="' + U.esc(t.id) + '" tabindex="0" role="button">' +
                 '<div class="row-main"><strong>' + U.esc(U.fullName(p)) + '</strong>' +
                 '<span class="muted">' + U.fmtDateLong(t.fecha) + ' · ' + U.esc(t.hora) + ' hs</span>' +
-                (varios ? UI.profTag(t.profesionalId, 'sm') : '') + '</div>' +
+                (varios ? UI.profTag(t.profesionalId, 'sm') : '') +
+                (UI.hayVariosServicios() ? UI.servTag(t.servicio, 'sm') : '') + '</div>' +
                 UI.estadoBadge(t.estado) + '</li>';
             }).join('') + '</ul>'
           : '<p class="muted">No hay turnos en los próximos días.</p>') +
