@@ -101,20 +101,26 @@ strong { font-weight: 700; }
 .layout { display: flex; min-height: 100vh; }
 
 .sidebar {
-  position: sticky; top: 0; height: 100vh;
+  position: sticky; top: 0; height: 100vh; height: 100dvh;
   width: var(--sidebar-w); flex-shrink: 0;
   background: var(--black);
   color: var(--side-fg);
   display: flex; flex-direction: column;
-  padding: 1.25rem 1rem;
+  padding: clamp(.7rem, 2.2vh, 1.25rem) 1rem;
+  /* Si la pantalla es baja y no entra todo, la barra se puede desplazar */
+  overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--side-fg) 25%, transparent) transparent;
 }
+.sidebar > * { flex-shrink: 0; }
 
 .brand {
-  position: relative; display: flex; flex-direction: column; align-items: center; gap: .5rem; text-align: center;
-  padding: .25rem .35rem 1.1rem; border-bottom: 1px solid color-mix(in srgb, var(--side-fg) 14%, transparent); margin-bottom: 1rem;
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(.25rem, 1vh, .5rem); text-align: center;
+  padding: .25rem .35rem clamp(.5rem, 1.6vh, 1.1rem); border-bottom: 1px solid color-mix(in srgb, var(--side-fg) 14%, transparent);
+  margin-bottom: clamp(.4rem, 1.5vh, 1rem);
 }
 /* El logo tiene fondo negro: "lighten" lo funde con el fondo oscuro */
-.brand-logo { display: block; width: 190px; height: auto; max-height: 220px; object-fit: contain; }
+/* El logo se achica en pantallas bajas para que siempre entre todo el menú */
+.brand-logo { display: block; width: auto; height: auto; max-width: 190px; max-height: min(220px, 25vh); object-fit: contain; }
 .brand small { color: color-mix(in srgb, var(--side-fg) 62%, transparent); font-size: .78rem; line-height: 1.3; overflow-wrap: anywhere; }
 .brand .btn-icon { position: absolute; top: -.35rem; right: -.35rem; }
 .sidebar .btn-icon { color: color-mix(in srgb, var(--side-fg) 70%, transparent); }
@@ -132,14 +138,14 @@ strong { font-weight: 700; }
 .side-nav { display: flex; flex-direction: column; gap: .25rem; }
 .side-nav a {
   display: flex; align-items: center; gap: .85rem;
-  padding: .8rem .9rem; border-radius: var(--radius-sm);
+  padding: clamp(.45rem, 1.25vh, .8rem) .9rem; border-radius: var(--radius-sm);
   color: color-mix(in srgb, var(--side-fg) 78%, transparent); text-decoration: none; font-weight: 700; font-size: 1.02rem;
 }
 .side-nav a:hover { background: color-mix(in srgb, var(--side-fg) 8%, transparent); color: var(--side-fg); }
 .side-nav a.active { background: var(--primary); color: #fff; box-shadow: inset 4px 0 0 var(--olive-light); }
 .side-nav .icon { width: 1.4rem; height: 1.4rem; }
 
-.sidebar-foot { margin-top: auto; font-size: .78rem; color: color-mix(in srgb, var(--side-fg) 50%, transparent); padding: .5rem; }
+.sidebar-foot { margin-top: auto; font-size: .78rem; color: color-mix(in srgb, var(--side-fg) 50%, transparent); padding: .5rem .5rem 0; }
 
 .main {
   flex: 1; min-width: 0;
@@ -677,11 +683,13 @@ strong { font-weight: 700; }
 .brand-edit { position: relative; display: flex; flex-direction: column; align-items: center; gap: .3rem; cursor: pointer; border-radius: var(--radius); padding: .3rem; width: 100%; }
 .brand-edit:hover, .brand-edit:focus-visible { background: color-mix(in srgb, var(--side-fg) 8%, transparent); }
 .brand-edit-hint {
-  display: inline-flex; align-items: center; gap: .3rem; font-size: .72rem; font-weight: 700;
-  color: color-mix(in srgb, var(--side-fg) 60%, transparent); opacity: 0; transition: opacity .15s;
+  /* Aparece sobre el logo al pasar el mouse, sin ocupar lugar */
+  position: absolute; left: 50%; bottom: .35rem; transform: translateX(-50%); white-space: nowrap; pointer-events: none;
+  display: inline-flex; align-items: center; gap: .3rem; font-size: .72rem; font-weight: 700; padding: .2rem .6rem; border-radius: 99px;
+  color: var(--side-fg); background: color-mix(in srgb, var(--black) 80%, transparent); opacity: 0; transition: opacity .15s;
 }
 .brand-edit:hover .brand-edit-hint, .brand-edit:focus-visible .brand-edit-hint { opacity: 1; }
-@media (hover: none) { .brand-edit-hint { opacity: .8; } }
+@media (hover: none) { .brand-edit-hint { opacity: .85; } }
 .mobile-brand-wrap { display: flex; align-items: center; gap: .6rem; flex: 1; min-width: 0; cursor: pointer; border-radius: 10px; }
 
 /* Ventana "Turno otorgado" */
@@ -700,7 +708,7 @@ strong { font-weight: 700; }
 
 /* ---------------- Servicios (Kinesiología, Quiropraxia…) ---------------- */
 .nav-group {
-  display: block; margin: .6rem .9rem .2rem; font-size: .7rem; font-weight: 800; letter-spacing: .1em;
+  display: block; margin: clamp(.3rem, 1vh, .6rem) .9rem .15rem; font-size: .7rem; font-weight: 800; letter-spacing: .1em;
   text-transform: uppercase; color: color-mix(in srgb, var(--side-fg) 45%, transparent);
 }
 .serv-tag {
