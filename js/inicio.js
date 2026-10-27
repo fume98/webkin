@@ -80,7 +80,7 @@
               return '<button class="turno-card estado-' + U.esc(t.estado) + (now ? ' now' : '') + '" data-turno="' + U.esc(t.id) + '">' +
                 '<span class="t-hora"><strong>' + U.esc(t.hora) + '</strong>' + (now ? '<small>Ahora</small>' : '') + '</span>' +
                 '<span class="t-info"><strong>' + U.esc(U.fullName(p)) + '</strong>' +
-                '<small>' + (n && t.estado !== 'ausente' ? 'Sesión ' + n : '') + (t.motivo ? (n ? ' · ' : '') + U.esc(t.motivo) : '') + '</small>' +
+                '<small>' + (n && S.cuentaComoSesion(t.estado) ? 'Sesión ' + n : '') + (t.motivo ? (n ? ' · ' : '') + U.esc(t.motivo) : '') + '</small>' +
                 (varios ? UI.profTag(t.profesionalId, 'sm') : '') +
                 (UI.hayVariosServicios() ? UI.servTag(t.servicio, 'sm') : '') + '</span>' +
                 UI.estadoBadge(t.estado) +
@@ -136,7 +136,8 @@
           '<span class="muted">' + U.fmtDate(t.fecha) + ' · ' + U.esc(t.hora) + ' hs</span></div>' +
           '<div class="mini-btns">' +
             '<button class="btn btn-sm estado-btn estado-asistio" data-set="asistio">Asistió</button>' +
-            '<button class="btn btn-sm estado-btn estado-ausente" data-set="ausente">No vino</button>' +
+            '<button class="btn btn-sm estado-btn estado-falta_aviso" data-set="falta_aviso">Falta con aviso</button>' +
+            '<button class="btn btn-sm estado-btn estado-falta_sin_aviso" data-set="falta_sin_aviso">Falta sin aviso</button>' +
           '</div></li>';
       }).join('') + '</ul>'
     });

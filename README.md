@@ -13,15 +13,18 @@ No necesita instalación ni servidor: son archivos HTML, CSS y JavaScript que fu
 - Ficha completa: nombre, apellido, DNI, fecha de nacimiento (calcula la edad), sexo, ocupación/deporte, teléfono, email, dirección, localidad, provincia, código postal y contacto de emergencia.
 - Obra social / prepaga, N° de afiliado, médico derivante y cantidad de sesiones indicadas.
 - Historia clínica: diagnóstico, motivo de consulta, antecedentes, medicación, alergias/contraindicaciones, estudios complementarios, evaluación kinésica inicial, objetivos y plan de tratamiento.
-- Evolución **sesión por sesión**: tratamiento realizado, evolución, indicaciones para casa y nivel de dolor (escala EVA 0–10), en una línea de tiempo.
+- Evolución **sesión por sesión**: estado de atención (Vino, Atendido, Faltó con aviso, Faltó sin aviso), tratamiento realizado, evolución, indicaciones para casa y nivel de dolor (escala EVA 0–10), en una línea de tiempo. El estado de atención actualiza solo el turno de ese día en la agenda.
 - Buscador por nombre, apellido, DNI, teléfono, localidad u obra social.
 - Botón de WhatsApp directo e impresión de la ficha.
 
 **Agenda de turnos**
 - Vista por día y por semana, con los horarios libres de la jornada.
 - Número de sesión automático (por ejemplo, "Sesión 3 de 10").
-- Dar varias sesiones de una vez (por ejemplo, 10 sesiones lunes y miércoles a las 18 hs).
-- Estados: Pendiente, Confirmado, Asistió, No vino, Cancelado. Al marcar "Asistió" se abre la carga de la evolución.
+- Dar varios turnos de una vez, de dos formas:
+  - **Fechas y horarios a elección:** se agrega cada fecha con su horario, todas las que hagan falta.
+  - **Mismos días cada semana:** por ejemplo, 10 sesiones lunes y miércoles a las 18 hs.
+- Botón **"Dar turnos y enviar por WhatsApp"**: guarda todos los turnos y abre WhatsApp con un solo mensaje que los incluye a todos.
+- Estados: Pendiente, Confirmado, Asistió, Falta, Falta con aviso, Falta sin aviso, Cancelado. Al marcar "Asistió" se abre la carga de la evolución. Las faltas no suman número de sesión y la ficha del paciente muestra el resumen de faltas.
 - Aviso de superposición de horarios.
 - **Turnos por WhatsApp:** al dar un turno (o una serie de sesiones) aparece la opción de enviárselo al paciente por WhatsApp con el mensaje ya escrito: fecha, hora, profesional, dirección y un link para que lo agende en su Google Calendar. Queda registrado qué turnos se avisaron.
 - **Recordatorio por WhatsApp** de cada turno, y envío de todos los próximos turnos desde la ficha del paciente.

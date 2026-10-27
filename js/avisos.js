@@ -191,6 +191,7 @@
     const p = S.paciente(t0.pacienteId);
     const wa = p ? U.waLink(p.telefono, AV.mensajeConfirmacion(turnos)) : '';
     const varios = turnos.length > 1;
+    const yaEnviados = turnos.every(function (t) { return t.avisadoWhatsApp; });
 
     const body =
       '<div class="otorgado">' +
@@ -200,11 +201,13 @@
         '<ul class="otorgado-lista">' + turnos.slice(0, 12).map(function (t) {
           return '<li>' + U.icon('calendar') + U.esc(U.fmtDateLong(t.fecha)) + ' · ' + U.esc(t.hora) + ' hs</li>';
         }).join('') + (turnos.length > 12 ? '<li class="muted">y ' + (turnos.length - 12) + ' más…</li>' : '') + '</ul>' +
-        '<h4>¿Querés avisarle al paciente?</h4>' +
+        (yaEnviados
+          ? '<p class="otorgado-enviado">' + U.icon('whatsapp') + (varios ? 'Los turnos se enviaron' : 'El turno se envió') + ' por WhatsApp</p>'
+          : '<h4>¿Querés avisarle al paciente?</h4>') +
         '<div class="otorgado-acciones">' +
           (wa
             ? '<a class="btn btn-wa btn-lg" href="' + U.esc(wa) + '" target="_blank" rel="noopener" data-av="wa">' + U.icon('whatsapp') +
-              'Enviar ' + (varios ? 'los turnos' : 'el turno') + ' por WhatsApp</a>'
+              (yaEnviados ? 'Volver a enviar' : 'Enviar ' + (varios ? 'los ' + turnos.length + ' turnos' : 'el turno')) + ' por WhatsApp</a>'
             : '<p class="notice warn small">' + U.icon('alert') + '<span>El paciente no tiene teléfono cargado. Agregalo en su ficha para poder avisarle por WhatsApp.</span></p>') +
         '</div>' +
         '<h4>Agendarlo en tu calendario</h4>' +

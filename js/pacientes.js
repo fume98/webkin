@@ -323,7 +323,9 @@
     if (!evs.length) return '';
     return '<div class="panel"><h3>Evolución por sesión</h3>' + evs.map(function (e) {
       const pr = S.profesional(e.profesionalId);
-      return '<p><strong>' + U.fmtDate(e.fecha) + (e.sesionNro ? ' — Sesión ' + U.esc(e.sesionNro) : '') + '</strong>' +
+      const asis = S.asistencia(e.asistencia);
+      return '<p><strong>' + U.fmtDate(e.fecha) + (asis ? ' — ' + U.esc(asis.label) : '') +
+        (e.sesionNro && !S.esFaltaAsistencia(e.asistencia) ? ' — Sesión ' + U.esc(e.sesionNro) : '') + '</strong>' +
         (UI.hayVariosServicios() && S.servicio(e.servicio) ? ' · ' + U.esc(S.servicio(e.servicio).nombre) : '') +
         (pr ? ' · Atendió: ' + U.esc(pr.nombre) : '') +
         (e.dolor !== '' && e.dolor !== undefined ? ' · Dolor (EVA): ' + U.esc(e.dolor) + '/10' : '') + '<br>' +
@@ -346,12 +348,15 @@
     } else {
       html += '<ol class="timeline">' + evs.map(function (e) {
         const dolor = e.dolor !== '' && e.dolor !== undefined && e.dolor !== null;
-        return '<li class="tl-item">' +
+        const asis = S.asistencia(e.asistencia);
+        const falto = S.esFaltaAsistencia(e.asistencia);
+        return '<li class="tl-item' + (falto ? ' tl-falta' : '') + '">' +
           '<div class="tl-dot"></div>' +
           '<div class="tl-card">' +
             '<header>' +
               '<div><strong>' + U.fmtDateLong(e.fecha, true) + '</strong>' +
-                (e.sesionNro ? ' <span class="badge">Sesión ' + U.esc(e.sesionNro) + '</span>' : '') +
+                (asis ? ' <span class="badge asis-badge asis-' + U.esc(asis.value) + '">' + U.esc(asis.label) + '</span>' : '') +
+                (e.sesionNro && !falto ? ' <span class="badge">Sesión ' + U.esc(e.sesionNro) + '</span>' : '') +
                 (UI.hayVariosServicios() ? ' ' + UI.servTag(e.servicio) : '') +
                 (UI.hayVariosProfesionales() ? ' ' + UI.profTag(e.profesionalId) : '') + '</div>' +
               (dolor ? '<span class="eva eva-' + evaLevel(e.dolor) + '" title="Escala visual analógica">Dolor ' + U.esc(e.dolor) + '/10</span>' : '') +
@@ -407,10 +412,25 @@
     }
     const p = S.paciente(pacienteId);
     const dolorVal = e.dolor === undefined ? '' : e.dolor;
+    /* Estado de atención: si viene de un turno, se toma de su estado */
+    if (!e.asistencia) {
+      const tv = e.turnoId ? S.turno(e.turnoId) : null;
+      e.asistencia = tv && tv.estado === 'falta_aviso' ? 'falto_aviso'
+        : tv && (tv.estado === 'falta_sin_aviso' || tv.estado === 'ausente') ? 'falto_sin_aviso' : 'atendido';
+    }
 
     const body =
       '<p class="modal-sub">' + U.icon('user') + U.esc(U.fullName(p)) + '</p>' +
       '<div class="form-grid">' +
+        '<div class="field full"><label>Estado de atención</label>' +
+          '<div class="asistencia-opts" role="radiogroup" aria-label="Estado de atención">' +
+            S.ASISTENCIAS.map(function (a) {
+              return '<label class="asis-opt asis-' + a.value + '"><input type="radio" name="asistencia" value="' + a.value + '"' +
+                (e.asistencia === a.value ? ' checked' : '') + '><span>' + U.esc(a.label) + '</span></label>';
+            }).join('') +
+          '</div>' +
+          '<small class="hint">Si la sesión tiene un turno en la agenda, el turno se actualiza solo.</small>' +
+        '</div>' +
         UI.field({ name: 'fecha', label: 'Fecha', type: 'date', value: e.fecha, required: true }) +
         UI.field({ name: 'sesionNro', label: 'N° de sesión', type: 'number', value: e.sesionNro, min: 1, step: 1 }) +
         UI.servicioCampo(e.servicio) +
@@ -437,17 +457,48 @@
       title: evolucionId ? 'Editar sesión' : 'Cargar sesión / evolución',
       size: 'md',
       body: body,
+      onOpen: function (modal) {
+        /* Si faltó, los datos clínicos de la sesión no hacen falta */
+        const clinicos = ['dolor', 'tratamiento', 'evolucion', 'indicaciones'].map(function (n) {
+          return modal.querySelector('[name=' + n + ']').closest('.field');
+        });
+        const actualizar = function () {
+          const v = (modal.querySelector('[name=asistencia]:checked') || {}).value;
+          const falto = S.esFaltaAsistencia(v);
+          clinicos.forEach(function (f) { f.classList.toggle('apagado', falto); });
+          modal.querySelector('[name=evolucion]').placeholder = falto
+            ? 'Opcional: motivo de la falta, si reprogramó…'
+            : '¿Cómo llegó y cómo se fue? Cambios respecto a la sesión anterior…';
+        };
+        modal.querySelectorAll('[name=asistencia]').forEach(function (r) { r.addEventListener('change', actualizar); });
+        actualizar();
+      },
       onSubmit: function (form) {
         const d = UI.formData(form);
         d.pacienteId = pacienteId;
         if (evolucionId) d.id = evolucionId;
         if (preset && preset.turnoId) d.turnoId = preset.turnoId;
-        if (!d.tratamiento && !d.evolucion && d.dolor === '') {
+        const falto = S.esFaltaAsistencia(d.asistencia);
+        if (!falto && !d.tratamiento && !d.evolucion && d.dolor === '') {
           UI.toast('Escribí al menos el tratamiento o la evolución.', 'error');
           return false;
         }
+        if (falto) d.dolor = '';
+        /* Si no está vinculada a un turno, se busca el turno de ese día (mismo servicio) */
+        if (!d.turnoId && !evolucionId) {
+          const delDia = S.turnosDePaciente(pacienteId).find(function (t) {
+            return t.fecha === d.fecha && (t.servicio || '') === (d.servicio || '') && t.estado !== 'cancelado';
+          });
+          if (delDia) d.turnoId = delDia.id;
+        }
+        const tid = d.turnoId || (evolucionId && S.evolucion(evolucionId).turnoId);
+        const turnoV = tid ? S.turno(tid) : null;
+        const asis = S.asistencia(d.asistencia);
+        if (turnoV && asis && turnoV.estado !== asis.estadoTurno) {
+          S.saveTurno({ id: turnoV.id, estado: asis.estadoTurno });
+        }
         S.saveEvolucion(d);
-        UI.toast('Sesión guardada en la historia clínica');
+        UI.toast(falto ? 'Falta registrada en la historia clínica' : 'Sesión guardada en la historia clínica');
         if (onSaved) onSaved();
       }
     });
@@ -458,7 +509,7 @@
     const turnos = S.turnosDePaciente(p.id).slice().reverse();
     const hoy = U.today();
     const proximos = S.turnosDePaciente(p.id).filter(function (t) {
-      return t.fecha >= hoy && t.estado !== 'cancelado' && t.estado !== 'ausente' && t.estado !== 'asistio';
+      return t.fecha >= hoy && S.cuentaComoSesion(t.estado) && t.estado !== 'asistio';
     });
     const wa = proximos.length ? U.waLink(p.telefono, KF.Avisos.mensajeConfirmacion(proximos)) : '';
     let html = '<div class="toolbar no-print"><button class="btn btn-primary" data-new>' + U.icon('plus') + 'Dar turno</button>' +
@@ -467,6 +518,15 @@
       (proximos.length ? '<button class="btn btn-secondary" data-ics>' + U.icon('calendar') + 'Descargar para el calendario</button>' : '') +
     '</div>' +
     (proximos.length && !p.telefono ? '<p class="muted small no-print">Para enviarle los turnos por WhatsApp, cargá su teléfono en la ficha.</p>' : '');
+    /* Resumen de faltas del paciente */
+    const faltas = turnos.filter(function (t) { return S.esFalta(t.estado); });
+    if (faltas.length) {
+      const conAviso = faltas.filter(function (t) { return t.estado === 'falta_aviso'; }).length;
+      const sinAviso = faltas.filter(function (t) { return t.estado === 'falta_sin_aviso'; }).length;
+      html += '<p class="faltas-resumen">' + U.icon('alert') + '<span><strong>' + faltas.length + (faltas.length === 1 ? ' falta' : ' faltas') + '</strong>' +
+        (conAviso || sinAviso ? ' (' + [conAviso ? conAviso + ' con aviso' : '', sinAviso ? sinAviso + ' sin aviso' : ''].filter(Boolean).join(', ') + ')' : '') +
+        '</span></p>';
+    }
     if (!turnos.length) {
       html += UI.empty('calendar', 'Sin turnos', 'Este paciente todavía no tiene turnos asignados.');
     } else {
@@ -474,7 +534,7 @@
         const n = S.numeroSesion(t);
         return '<li class="row-item" data-id="' + U.esc(t.id) + '" tabindex="0" role="button">' +
           '<div class="row-main"><strong>' + U.fmtDateLong(t.fecha, true) + ' · ' + U.esc(t.hora) + ' hs</strong>' +
-          '<span class="muted">' + (n && t.estado !== 'cancelado' && t.estado !== 'ausente' ? 'Sesión ' + n + (p.sesionesIndicadas ? ' de ' + U.esc(p.sesionesIndicadas) : '') + ' · ' : '') +
+          '<span class="muted">' + (n && S.cuentaComoSesion(t.estado) ? 'Sesión ' + n + (p.sesionesIndicadas ? ' de ' + U.esc(p.sesionesIndicadas) : '') + ' · ' : '') +
           U.esc(t.duracion) + ' min' + (t.motivo ? ' · ' + U.esc(t.motivo) : '') + '</span>' +
           (UI.hayVariosProfesionales() ? UI.profTag(t.profesionalId, 'sm') : '') +
           (UI.hayVariosServicios() ? UI.servTag(t.servicio, 'sm') : '') + '</div>' +

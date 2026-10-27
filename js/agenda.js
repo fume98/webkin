@@ -128,7 +128,7 @@
       '<span class="t-hora"><strong>' + U.esc(t.hora) + '</strong>' + (compact ? '' : '<small>' + fin + '</small>') + '</span>' +
       '<span class="t-info">' +
         '<strong>' + U.esc(U.fullName(p)) + '</strong>' +
-        '<small>' + (n && t.estado !== 'cancelado' && t.estado !== 'ausente' ? 'Sesión ' + n + indic : '') +
+        '<small>' + (n && S.cuentaComoSesion(t.estado) ? 'Sesión ' + n + indic : '') +
           (!compact && t.motivo ? (n ? ' · ' : '') + U.esc(t.motivo) : '') + '</small>' +
         (!profSel && UI.hayVariosProfesionales() ? UI.profTag(t.profesionalId, compact ? 'sm' : '') : '') +
         (!servSel && UI.hayVariosServicios() ? UI.servTag(t.servicio, compact ? 'sm' : '') : '') +
@@ -263,27 +263,42 @@
       '</div>' +
       (id ? '' :
         '<details class="repeat-box">' +
-          '<summary>' + U.icon('calendar') + 'Dar varias sesiones de una vez (opcional)</summary>' +
-          '<p class="hint">Ideal para tratamientos: elegí los días de la semana y cuántas sesiones en total. ' +
-          'Se crean a la misma hora a partir de la fecha indicada.</p>' +
-          '<div class="dias-check" role="group" aria-label="Días de la semana">' +
-            dias.map(function (d) {
-              return '<label class="chip"><input type="checkbox" name="rep_dia" value="' + d + '"><span>' + U.DIAS_CORTOS[d] + '</span></label>';
-            }).join('') +
+          '<summary>' + U.icon('calendar') + 'Dar varios turnos de una vez (opcional)</summary>' +
+          '<div class="segmented rep-modo" role="radiogroup" aria-label="Cómo elegir los turnos">' +
+            '<label><input type="radio" name="rep_modo" value="fechas" checked><span>Fechas y horarios a elección</span></label>' +
+            '<label><input type="radio" name="rep_modo" value="semana"><span>Mismos días cada semana</span></label>' +
           '</div>' +
-          '<div class="form-grid">' +
-            UI.field({ name: 'rep_total', label: 'Cantidad total de sesiones', type: 'number', min: 1, max: 60, step: 1,
-              placeholder: 'Ej: 10' }) +
+          '<div class="rep-panel" data-panel="fechas">' +
+            '<p class="hint">El primer turno es el de arriba. Agregá todas las fechas y horarios que quieras.</p>' +
+            '<div class="fechas-lista"></div>' +
+            '<button type="button" class="btn btn-secondary btn-sm" data-add-fecha>' + U.icon('plus') + 'Agregar otra fecha</button>' +
           '</div>' +
+          '<div class="rep-panel" data-panel="semana" hidden>' +
+            '<p class="hint">Elegí los días de la semana y cuántas sesiones en total. ' +
+            'Se crean a la misma hora a partir de la fecha indicada.</p>' +
+            '<div class="dias-check" role="group" aria-label="Días de la semana">' +
+              dias.map(function (d) {
+                return '<label class="chip"><input type="checkbox" name="rep_dia" value="' + d + '"><span>' + U.DIAS_CORTOS[d] + '</span></label>';
+              }).join('') +
+            '</div>' +
+            '<div class="form-grid">' +
+              UI.field({ name: 'rep_total', label: 'Cantidad total de sesiones', type: 'number', min: 1, max: 60, step: 1,
+                placeholder: 'Ej: 10' }) +
+            '</div>' +
+          '</div>' +
+          '<p class="hint rep-wa">' + U.icon('whatsapp') + '<span>Con <strong>"Dar turnos y enviar por WhatsApp"</strong> se guardan todos y se le mandan juntos al paciente.</span></p>' +
         '</details>');
 
     const svT = S.servicio(t.servicio);
-    UI.modal({
+    let enviarWa = false; /* lo activa el botón "Dar turno y enviar por WhatsApp" */
+    const modalEl = UI.modal({
       title: id ? 'Editar turno' : (svT && UI.hayVariosServicios() ? 'Nuevo turno de ' + svT.nombre : 'Nuevo turno'),
       size: 'md',
       body: body,
       submitLabel: id ? 'Guardar cambios' : 'Dar turno',
+      extraFooter: id ? '' : '<button type="button" class="btn btn-wa" data-guardar-wa>' + U.icon('whatsapp') + '<span>Dar turno y enviar por WhatsApp</span></button>',
       onOpen: function (modal) {
+        if (!id) prepararVarios(modal);
         const prof = modal.querySelector('[name=profesionalId]');
         const dur = modal.querySelector('[name=duracion]');
         const servicioElegido = function () {
@@ -306,14 +321,25 @@
       },
       onSubmit: function (form) {
         const d = UI.formData(form);
+        const modo = (form.querySelector('input[name=rep_modo]:checked') || {}).value;
         const repDias = Array.prototype.map.call(form.querySelectorAll('input[name=rep_dia]:checked'), function (x) { return Number(x.value); });
         const repTotal = Number(d.rep_total) || 0;
-        delete d.rep_dia;
-        delete d.rep_total;
+        const abierto = form.querySelector('.repeat-box') && form.querySelector('.repeat-box').open;
+        ['rep_dia', 'rep_total', 'rep_modo', 'ext_fecha', 'ext_hora'].forEach(function (k) { delete d[k]; });
         d.duracion = Number(d.duracion) || 45;
+        const quiereWa = enviarWa;
+        enviarWa = false;
 
-        if (!id && repDias.length && repTotal > 1) {
-          return crearSerie(d, repDias, repTotal, onSaved);
+        if (!id && abierto) {
+          let lista = null;
+          if (modo === 'semana' && repDias.length && repTotal > 1) {
+            lista = fechasPorSemana(d.fecha, repDias, repTotal).map(function (f) { return { fecha: f, hora: d.hora }; });
+          } else if (modo === 'fechas') {
+            const extras = leerFechasExtra(form);
+            if (extras === null) return false;
+            if (extras.length) lista = [{ fecha: d.fecha, hora: d.hora }].concat(extras);
+          }
+          if (lista) return crearTurnos(d, lista, onSaved, quiereWa);
         }
 
         const choque = S.turnoSuperpuesto(d.fecha, d.hora, d.duracion, id, d.profesionalId);
@@ -329,31 +355,141 @@
         const guardado = S.saveTurno(d);
         fechaSel = d.fecha;
         if (onSaved) onSaved();
-        if (id) UI.toast('Turno actualizado');
+        if (id) { UI.toast('Turno actualizado'); return; }
+        if (quiereWa) enviarPorWhatsApp([guardado]);
         /* Turno nuevo: se ofrece avisar al paciente y agendarlo (después de cerrar este formulario) */
-        else setTimeout(function () { KF.Avisos.mostrarOtorgados([guardado.id], onSaved); }, 0);
+        setTimeout(function () { KF.Avisos.mostrarOtorgados([guardado.id], onSaved); }, 0);
       }
+    });
+
+    /* "Dar turno y enviar por WhatsApp": guarda y abre WhatsApp en el mismo toque */
+    const btnWa = modalEl.querySelector('[data-guardar-wa]');
+    if (btnWa) btnWa.addEventListener('click', function () {
+      enviarWa = true;
+      const form = modalEl.querySelector('form');
+      if (form.requestSubmit) form.requestSubmit();
+      else form.dispatchEvent(new Event('submit', { cancelable: true }));
+      enviarWa = false;
     });
   };
 
-  function crearSerie(base, dias, total, onSaved) {
+  /* ---------- Varios turnos de una vez ---------- */
+  function prepararVarios(modal) {
+    const box = modal.querySelector('.repeat-box');
+    if (!box) return;
+    const lista = box.querySelector('.fechas-lista');
+    const btnWa = modal.querySelector('[data-guardar-wa] span');
+    const fechaBase = modal.querySelector('[name=fecha]');
+    const horaBase = modal.querySelector('[name=hora]');
+
+    const contar = function () {
+      const modo = (box.querySelector('input[name=rep_modo]:checked') || {}).value;
+      let n = 1;
+      if (box.open && modo === 'fechas') n += lista.querySelectorAll('.fecha-row').length;
+      if (box.open && modo === 'semana') n = Math.max(1, Number(box.querySelector('[name=rep_total]').value) || 1);
+      const submit = modal.querySelector('.modal-foot button[type=submit]');
+      submit.lastChild.textContent = n > 1 ? 'Dar ' + n + ' turnos' : 'Dar turno';
+      if (btnWa) btnWa.textContent = n > 1 ? 'Dar ' + n + ' turnos y enviar por WhatsApp' : 'Dar turno y enviar por WhatsApp';
+    };
+
+    const agregar = function () {
+      const filas = lista.querySelectorAll('.fecha-row');
+      const ultima = filas.length ? filas[filas.length - 1] : null;
+      const desde = ultima ? ultima.querySelector('[name=ext_fecha]').value : fechaBase.value;
+      const hora = ultima ? ultima.querySelector('[name=ext_hora]').value : horaBase.value;
+      const row = document.createElement('div');
+      row.className = 'fecha-row';
+      row.innerHTML =
+        '<span class="fecha-num">' + (filas.length + 2) + '</span>' +
+        '<input type="date" name="ext_fecha" aria-label="Fecha" value="' + (desde ? U.addDays(desde, 7) : '') + '">' +
+        '<input type="time" name="ext_hora" aria-label="Hora" step="300" value="' + U.esc(hora || '') + '">' +
+        '<button type="button" class="btn-icon danger" aria-label="Quitar esta fecha">' + U.icon('x') + '</button>';
+      row.querySelector('button').addEventListener('click', function () {
+        row.remove();
+        lista.querySelectorAll('.fecha-num').forEach(function (el, i) { el.textContent = i + 2; });
+        contar();
+      });
+      lista.appendChild(row);
+      contar();
+      const inp = row.querySelector('[name=ext_fecha]');
+      if (window.matchMedia('(pointer:fine)').matches) inp.focus();
+    };
+
+    box.querySelector('[data-add-fecha]').addEventListener('click', agregar);
+    box.addEventListener('toggle', function () {
+      if (box.open && !lista.children.length && (box.querySelector('input[name=rep_modo]:checked') || {}).value === 'fechas') agregar();
+      contar();
+    });
+    box.querySelectorAll('input[name=rep_modo]').forEach(function (r) {
+      r.addEventListener('change', function () {
+        box.querySelectorAll('.rep-panel').forEach(function (p) { p.hidden = p.dataset.panel !== r.value; });
+        if (r.value === 'fechas' && !lista.children.length) agregar();
+        contar();
+      });
+    });
+    box.querySelector('[name=rep_total]').addEventListener('input', contar);
+  }
+
+  /* Lee las fechas extra; null si hay alguna incompleta */
+  function leerFechasExtra(form) {
+    const out = [];
+    let incompleta = false;
+    form.querySelectorAll('.fecha-row').forEach(function (row) {
+      const f = row.querySelector('[name=ext_fecha]').value;
+      const h = row.querySelector('[name=ext_hora]').value;
+      row.classList.toggle('invalid', !f || !h);
+      if (!f || !h) incompleta = true;
+      else out.push({ fecha: f, hora: h });
+    });
+    if (incompleta) { UI.toast('Completá la fecha y la hora de cada turno, o quitá los que no uses.', 'error'); return null; }
+    return out;
+  }
+
+  function fechasPorSemana(desde, dias, total) {
     const fechas = [];
-    let f = base.fecha;
+    let f = desde;
     let guard = 0;
     while (fechas.length < total && guard < 400) {
       if (dias.indexOf(U.parseDate(f).getDay()) >= 0) fechas.push(f);
       f = U.addDays(f, 1);
       guard++;
     }
+    return fechas;
+  }
+
+  function enviarPorWhatsApp(turnos) {
+    const p = S.paciente(turnos[0].pacienteId);
+    const wa = p ? U.waLink(p.telefono, KF.Avisos.mensajeConfirmacion(turnos)) : '';
+    if (!wa) {
+      UI.toast('El paciente no tiene teléfono cargado: no se pudo enviar por WhatsApp.', 'error');
+      return;
+    }
+    window.open(wa, '_blank', 'noopener');
+    KF.Avisos.marcarAvisados(turnos);
+    UI.toast('Se abrió WhatsApp con ' + (turnos.length === 1 ? 'el turno' : 'los ' + turnos.length + ' turnos') + ' para enviar');
+  }
+
+  /* Crea varios turnos iguales en distintas fechas y horarios */
+  function crearTurnos(base, lista, onSaved, enviarWa) {
+    /* Sin repetidos y en orden */
+    const vistos = {};
+    const unicos = lista.filter(function (x) {
+      const k = x.fecha + ' ' + x.hora;
+      if (vistos[k]) return false;
+      vistos[k] = true;
+      return true;
+    }).sort(function (a, b) { return (a.fecha + a.hora).localeCompare(b.fecha + b.hora); });
     let choques = 0;
-    const ids = [];
-    fechas.forEach(function (fecha) {
-      if (S.turnoSuperpuesto(fecha, base.hora, base.duracion, null, base.profesionalId)) choques++;
-      ids.push(S.saveTurno(Object.assign({}, base, { fecha: fecha })).id);
+    const guardados = [];
+    unicos.forEach(function (x) {
+      if (S.turnoSuperpuesto(x.fecha, x.hora, base.duracion, null, base.profesionalId)) choques++;
+      guardados.push(S.saveTurno(Object.assign({}, base, { fecha: x.fecha, hora: x.hora })));
     });
     if (choques) UI.toast(choques + (choques === 1 ? ' turno se superpone' : ' turnos se superponen') + ' con otros. Revisá la agenda.', 'error');
-    fechaSel = fechas[0];
+    fechaSel = unicos[0].fecha;
     if (onSaved) onSaved();
+    if (enviarWa) enviarPorWhatsApp(guardados);
+    const ids = guardados.map(function (t) { return t.id; });
     setTimeout(function () { KF.Avisos.mostrarOtorgados(ids, onSaved); }, 0);
   }
 
@@ -382,7 +518,7 @@
             (prof && prof.especialidad ? ' <span class="muted">' + U.esc(prof.especialidad) + '</span>' : '') + '</dd></div>' +
           '<div class="info"><dt>Fecha</dt><dd>' + U.fmtDateLong(t.fecha, true) + '</dd></div>' +
           '<div class="info"><dt>Horario</dt><dd>' + U.esc(t.hora) + ' a ' + U.minToTime(U.timeToMin(t.hora) + Number(t.duracion || 0)) + ' hs</dd></div>' +
-          '<div class="info"><dt>Sesión</dt><dd>' + (n && t.estado !== 'cancelado' && t.estado !== 'ausente' ? 'N° ' + n + (p && p.sesionesIndicadas && t.servicio === S.servicioPrincipal().id ? ' de ' + U.esc(p.sesionesIndicadas) : '') : '—') + '</dd></div>' +
+          '<div class="info"><dt>Sesión</dt><dd>' + (n && S.cuentaComoSesion(t.estado) ? 'N° ' + n + (p && p.sesionesIndicadas && t.servicio === S.servicioPrincipal().id ? ' de ' + U.esc(p.sesionesIndicadas) : '') : '—') + '</dd></div>' +
           '<div class="info"><dt>Pago</dt><dd>' + (pagos.length
             ? pagos.map(function (x) { return U.fmtMoney(x.monto) + ' (' + U.esc(x.forma) + ')'; }).join('<br>')
             : '<span class="muted">Sin pago asociado</span>') + '</dd></div>' +

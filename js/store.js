@@ -37,7 +37,9 @@
     { value: 'pendiente', label: 'Pendiente' },
     { value: 'confirmado', label: 'Confirmado' },
     { value: 'asistio', label: 'Asistió' },
-    { value: 'ausente', label: 'No vino' },
+    { value: 'ausente', label: 'Falta' },
+    { value: 'falta_aviso', label: 'Falta con aviso' },
+    { value: 'falta_sin_aviso', label: 'Falta sin aviso' },
     { value: 'cancelado', label: 'Cancelado' }
   ];
 
@@ -50,6 +52,14 @@
     { id: 'quiropraxia', nombre: 'Quiropraxia', corto: 'Quiro', color: '#7a4f9a', duracionTurno: '', precioSesion: '', activo: true }
   ];
   const COLORES_SERV = ['#0b7f7c', '#7a4f9a', '#c0573e', '#2f6f9f', '#a07800', '#b0457a', '#5f6e22', '#4f5e5b'];
+
+  /* Estado de atención de cada sesión cargada en la historia clínica */
+  const ASISTENCIAS = [
+    { value: 'vino', label: 'Vino', estadoTurno: 'asistio' },
+    { value: 'atendido', label: 'Atendido', estadoTurno: 'asistio' },
+    { value: 'falto_aviso', label: 'Faltó con aviso', estadoTurno: 'falta_aviso' },
+    { value: 'falto_sin_aviso', label: 'Faltó sin aviso', estadoTurno: 'falta_sin_aviso' }
+  ];
 
   const DEFAULT_SETTINGS = {
     profesional: '',
@@ -286,6 +296,23 @@
       data = load();
     },
 
+    /* Faltas: "Falta", "Falta con aviso" y "Falta sin aviso" */
+    ASISTENCIAS: ASISTENCIAS,
+    asistencia: function (value) {
+      return ASISTENCIAS.find(function (x) { return x.value === value; }) || null;
+    },
+    esFaltaAsistencia: function (value) {
+      return value === 'falto_aviso' || value === 'falto_sin_aviso';
+    },
+
+    esFalta: function (estado) {
+      return estado === 'ausente' || estado === 'falta_aviso' || estado === 'falta_sin_aviso';
+    },
+    /* Los turnos cancelados o con falta no cuentan como sesión del tratamiento */
+    cuentaComoSesion: function (estado) {
+      return estado !== 'cancelado' && !S.esFalta(estado);
+    },
+
     estadoLabel: function (value) {
       const e = ESTADOS_TURNO.find(function (x) { return x.value === value; });
       return e ? e.label : value;
@@ -400,7 +427,7 @@
     /* Número de sesión del turno dentro del tratamiento del paciente (en ese servicio) */
     numeroSesion: function (turno) {
       const lista = S.turnosDePaciente(turno.pacienteId).filter(function (t) {
-        return t.estado !== 'cancelado' && t.estado !== 'ausente' && (t.servicio || '') === (turno.servicio || '');
+        return S.cuentaComoSesion(t.estado) && (t.servicio || '') === (turno.servicio || '');
       });
       const idx = lista.findIndex(function (t) { return t.id === turno.id; });
       return idx >= 0 ? idx + 1 : null;
