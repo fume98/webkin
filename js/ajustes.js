@@ -183,10 +183,28 @@
     if (bloquear) bloquear.addEventListener('click', function () { KF.App.lock(); });
 
     main.querySelector('#bk-export').addEventListener('click', function () {
-      U.download('kinesio-copia-' + U.today() + '.json', S.exportJSON(), 'application/json');
-      S.saveSettings({ ultimoBackup: new Date().toISOString() });
-      UI.toast('Copia de seguridad descargada');
-      setTimeout(function () { AJ.render(main); }, 300);
+      const btn = this;
+      btn.disabled = true;
+      /* La copia incluye los archivos adjuntos (estudios, fotos) */
+      KF.Archivos.paraCopia().then(function (r) {
+        let texto = S.exportJSON();
+        const n = Object.keys(r.archivos).length;
+        if (n) {
+          const obj = JSON.parse(texto);
+          obj.archivos = r.archivos;
+          texto = JSON.stringify(obj);
+        }
+        U.download('kinesio-copia-' + U.today() + '.json', texto, 'application/json');
+        S.saveSettings({ ultimoBackup: new Date().toISOString() });
+        UI.toast(r.total > n
+          ? 'Copia descargada. ' + (r.total - n) + ' archivo(s) no se pudieron incluir (revisá la conexión).'
+          : 'Copia de seguridad descargada' + (n ? ' (con ' + n + (n === 1 ? ' archivo)' : ' archivos)') : ''),
+        r.total > n ? 'error' : 'ok');
+        setTimeout(function () { AJ.render(main); }, 300);
+      }).catch(function (e) {
+        btn.disabled = false;
+        UI.toast(e.message || 'No se pudo armar la copia', 'error');
+      });
     });
 
     main.querySelector('#bk-import').addEventListener('change', function (ev) {
@@ -201,7 +219,16 @@
           confirmLabel: 'Restaurar',
           onConfirm: function () {
             try {
-              S.importJSON(reader.result);
+              let texto = reader.result;
+              let archivos = null;
+              const obj = JSON.parse(texto);
+              if (obj && obj.archivos) {
+                archivos = obj.archivos;
+                delete obj.archivos;
+                texto = JSON.stringify(obj);
+              }
+              S.importJSON(texto);
+              if (archivos) KF.Archivos.restaurarCopia(archivos).then(function () { KF.App.refresh(); });
               UI.toast('Datos restaurados correctamente');
               KF.App.applyFont();
               KF.App.updateBrand();

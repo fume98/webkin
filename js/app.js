@@ -254,6 +254,7 @@
       App.applyFont();
       App.updateBrand();
       App.mostrarEstadoNube(KF.Nube.estado());
+      KF.Archivos.iniciar();
       if (S.settings.pinHash) App.lock();
       else App.refresh();
     });

@@ -3,7 +3,7 @@
  * Siempre intenta primero la versión más nueva (red) y, si no hay conexión, usa la guardada.
  * Solo maneja archivos de la propia app: los datos de Supabase nunca pasan por acá.
  */
-const CACHE = 'consultorio-v6';
+const CACHE = 'consultorio-v7';
 const ARCHIVOS = [
   './',
   'index.html',
@@ -19,6 +19,7 @@ const ARCHIVOS = [
   'js/vendor/supabase.js',
   'js/config.js',
   'js/nube.js',
+  'js/archivos.js',
   'js/pacientes.js',
   'js/agenda.js',
   'js/pagos.js',

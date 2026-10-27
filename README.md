@@ -14,6 +14,11 @@ No necesita instalación ni servidor: son archivos HTML, CSS y JavaScript que fu
 - Obra social / prepaga, N° de afiliado, médico derivante y cantidad de sesiones indicadas.
 - Historia clínica: diagnóstico, motivo de consulta, antecedentes, medicación, alergias/contraindicaciones, estudios complementarios, evaluación kinésica inicial, objetivos y plan de tratamiento.
 - Evolución **sesión por sesión**: estado de atención (Vino, Atendido, Faltó con aviso, Faltó sin aviso), tratamiento realizado, evolución, indicaciones para casa y nivel de dolor (escala EVA 0–10), en una línea de tiempo. El estado de atención actualiza solo el turno de ese día en la agenda.
+- **Archivos de estudios:** en "Estudios complementarios" hay dos botones:
+  - **Adjuntar archivo:** fotos, radiografías, resonancias, órdenes médicas, PDF o documentos (hasta 15 MB cada uno, se pueden elegir varios a la vez).
+  - **Sacar foto:** en el celular abre la cámara del teléfono; en la computadora abre la cámara web, con vista previa para repetir la foto antes de guardarla.
+
+  Las fotos se achican solas para ocupar poco. Cada archivo se ve en grande, se descarga o se quita desde la ficha. Con la nube se comparten entre todos los equipos; sin internet quedan guardados y se suben solos al volver la conexión.
 - Buscador por nombre, apellido, DNI, teléfono, localidad u obra social.
 - Botón de WhatsApp directo e impresión de la ficha.
 
@@ -60,7 +65,7 @@ No necesita instalación ni servidor: son archivos HTML, CSS y JavaScript que fu
 - Clave PIN para abrir la aplicación.
 - Base de datos en la nube (Supabase): conexión, usuarios con acceso y estado de sincronización.
 - **Marca y colores:** nombre, subtítulo, logo, ícono y colores del consultorio, con vista previa en vivo y paletas listas.
-- Copia de seguridad: descargar y restaurar.
+- Copia de seguridad: descargar y restaurar (incluye los archivos adjuntos de los pacientes).
 - Datos de ejemplo para probar.
 
 ## Cómo usarla
@@ -90,7 +95,9 @@ Sin nube, cada dispositivo guarda sus propios datos. Con la nube, **todos los pr
 ### 1. Crear el proyecto (una sola vez)
 1. Entrá a [supabase.com](https://supabase.com), creá una cuenta gratis y tocá **New project**.
 2. Poné un nombre (por ejemplo `fisiocoresalud`), elegí una **contraseña de la base de datos** (guardala) y la región **South America (São Paulo)**. Esperá un par de minutos a que se cree.
-3. Andá a **SQL Editor → New query**, pegá todo el contenido del archivo [`supabase/esquema.sql`](supabase/esquema.sql) y tocá **Run**. Tiene que decir *Success*.
+3. Andá a **SQL Editor → New query**, pegá todo el contenido del archivo [`supabase/esquema.sql`](supabase/esquema.sql) y tocá **Run**. Tiene que decir *Success*. Esto crea también la carpeta privada `adjuntos`, donde se guardan los archivos de los pacientes.
+
+   > **¿Ya tenías la base armada de antes?** Para usar los archivos adjuntos corré una sola vez [`supabase/archivos.sql`](supabase/archivos.sql) de la misma forma.
 4. Andá a **Authentication → URL Configuration**:
    - En **Site URL** poné el link de la app, por ejemplo `https://fisiocoresalud.netlify.app/`.
    - En **Redirect URLs** agregá ese mismo link.
@@ -202,4 +209,5 @@ img/generico*         Ícono genérico para instalaciones de clientes
 herramientas/configurar-cliente.js  Prepara la instalación de un cliente (lo ejecuta Netlify)
 sw.js                 Permite abrir la app sin internet
 supabase/esquema.sql  Tablas y reglas de seguridad de la base de datos
+supabase/archivos.sql Carpeta privada para los archivos adjuntos (para bases ya creadas)
 ```

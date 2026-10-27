@@ -47,6 +47,8 @@
   };
 
   N.usuario = function () { return usuario; };
+  /* Cliente de Supabase con sesión iniciada (lo usan los archivos adjuntos) */
+  N.cliente = function () { return client && usuario && S.esModoNube() ? client : null; };
   N.estado = function () { return estado; };
   N.pendientes = function () { return Object.keys(pendientes).length; };
   N.alCambiarEstado = function (fn) { oyentes.push(fn); };
@@ -623,15 +625,20 @@
         } catch (e) { /* nada */ }
         S.salirDeNube();
         location.hash = '';
-        location.reload();
+        /* Los archivos adjuntos guardados en este equipo también se borran */
+        const recargar = function () { location.reload(); };
+        if (KF.Archivos) KF.Archivos.vaciarDispositivo().then(recargar, recargar);
+        else recargar();
       };
       if (client) client.auth.signOut().then(fin, fin);
       else fin();
     };
-    if (sinPreguntar || !N.pendientes()) { hacer(); return; }
+    const archivos = KF.Archivos ? KF.Archivos.pendientes() : 0;
+    if (sinPreguntar || (!N.pendientes() && !archivos)) { hacer(); return; }
     KF.UI.confirm({
       title: 'Hay cambios sin subir',
-      message: 'Hay ' + N.pendientes() + ' cambios que todavía no se subieron a la nube (falta conexión). Si cerrás sesión ahora se pierden. ¿Cerrar igual?',
+      message: 'Hay ' + [N.pendientes() ? N.pendientes() + ' cambios' : '', archivos ? archivos + (archivos === 1 ? ' archivo' : ' archivos') : '']
+        .filter(Boolean).join(' y ') + ' que todavía no se subieron a la nube (falta conexión). Si cerrás sesión ahora se pierden. ¿Cerrar igual?',
       confirmLabel: 'Cerrar sesión igual',
       onConfirm: hacer
     });

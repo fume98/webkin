@@ -129,11 +129,25 @@
         { name: 'notas', label: 'Otras observaciones', type: 'textarea', rows: 2, value: p.notas, full: true }
       ], 'clipboard');
 
+    /* Paciente nuevo: los archivos se guardan al crear la ficha */
+    const memoria = id ? null : [];
+    let archivosCambiaron = false;
+
     UI.modal({
       title: id ? 'Editar ficha' : 'Nuevo paciente',
       size: 'lg',
       body: body,
       submitLabel: id ? 'Guardar cambios' : 'Crear ficha',
+      onOpen: function (modal) {
+        const campo = modal.querySelector('#f_estudios').closest('.field');
+        campo.insertAdjacentHTML('afterend',
+          '<div class="field full adj-campo"><span class="label-like">Archivos de estudios' +
+          (id ? ' <small class="muted">(se guardan al instante)</small>' : '') + '</span><div class="adjuntos" id="adj-form"></div></div>');
+        KF.Archivos.montar(modal.querySelector('#adj-form'), id
+          ? { pacienteId: id, alCambiar: function () { archivosCambiaron = true; } }
+          : { memoria: memoria });
+      },
+      onClose: function () { if (archivosCambiaron) KF.App.refresh(); },
       onSubmit: function (form) {
         const d = UI.formData(form);
         if (d.dni) {
@@ -144,6 +158,11 @@
         }
         if (id) d.id = id;
         const saved = S.savePaciente(d);
+        if (memoria && memoria.length) {
+          KF.Archivos.guardarMemoria(saved.id, memoria).then(function () {
+            if (location.hash === '#/paciente/' + saved.id) KF.App.refresh();
+          }).catch(function (e) { UI.toast(e.message || 'No se pudieron guardar los archivos', 'error'); });
+        }
         UI.toast(id ? 'Ficha actualizada' : 'Paciente creado');
         if (onSaved) onSaved(saved);
         else if (!id) location.hash = '#/paciente/' + saved.id;
@@ -279,12 +298,14 @@
         info('Medicación actual', p.medicacion) +
         info('Alergias / Contraindicaciones', p.alergias) +
         info('Estudios complementarios', p.estudios, true) +
+        '<div class="info full"><dt>Archivos de estudios</dt><dd><div class="adjuntos" id="adj-ficha"></div></dd></div>' +
         info('Evaluación kinésica inicial', p.evaluacion, true) +
         info('Objetivos y plan de tratamiento', p.objetivos, true) +
         info('Otras observaciones', p.notas, true) +
       '</dl></div>' +
       '<div class="print-only">' + printEvoluciones(p) + '</div>';
 
+    KF.Archivos.montar(box.querySelector('#adj-ficha'), { pacienteId: p.id });
     box.querySelector('[data-edit]').addEventListener('click', function () { P.openForm(p.id); });
     box.querySelector('[data-print]').addEventListener('click', function () { window.print(); });
     box.querySelector('[data-del]').addEventListener('click', function () {
@@ -292,6 +313,7 @@
         title: 'Eliminar paciente',
         message: 'Se eliminará la ficha de ' + U.fullName(p) + ' junto con su historia clínica, turnos y pagos. Esta acción no se puede deshacer.',
         onConfirm: function () {
+          KF.Archivos.borrarDePaciente(p.id);
           S.deletePaciente(p.id);
           UI.toast('Paciente eliminado');
           location.hash = '#/pacientes';
