@@ -8,6 +8,7 @@
   const CFG_KEY = 'kinesio_nube_config';
   const PEND_KEY = 'kinesio_nube_pendientes';
   const META_KEY = 'kinesio_nube_meta';
+  const NOMBRE_KEY = 'kinesio_nube_nombre';
   const SEP = '\u0001';
   const LOTE = 200;
 
@@ -133,6 +134,10 @@
       '<input name="' + name + '" type="' + type + '" required ' + (extra || '') + '></label>';
   }
 
+  function nombreConsultorio() {
+    return (KF.Marca && KF.Marca.nombreCompleto && KF.Marca.nombreCompleto()) || document.title || 'el consultorio';
+  }
+
   function aviso(scr, msg, tipo) {
     const el = scr.querySelector('.nube-msg');
     el.textContent = msg || '';
@@ -157,8 +162,11 @@
         '<p class="nube-msg" role="alert"></p>' +
         '<button type="submit" class="btn btn-primary btn-lg nube-btn">Ingresar</button>' +
       '</form>' +
+      '<div class="nube-nuevo">' +
+        '<p>¿Sos profesional del consultorio y todavía no tenés usuario?</p>' +
+        '<button type="button" class="btn btn-secondary nube-btn" data-ir="registro">Crear cuenta y pedir acceso</button>' +
+      '</div>' +
       '<div class="nube-links">' +
-        '<button type="button" class="linklike" data-ir="registro">Crear una cuenta</button>' +
         '<button type="button" class="linklike" data-ir="recuperar">¿Olvidaste tu contraseña?</button>' +
         (cfg && cfg.origen === 'dispositivo'
           ? '<button type="button" class="linklike muted-link" data-ir="desconectar">Dejar de usar la nube en este dispositivo</button>' : '') +
@@ -185,8 +193,10 @@
   function mostrarRegistro() {
     const scr = pantalla(
       '<h1>Crear una cuenta</h1>' +
-      '<p class="nube-sub">Después de crearla, alguien del consultorio tiene que darte acceso (salvo que seas la primera persona).</p>' +
+      '<p class="nube-sub">Con tu email y una contraseña. Después pedís acceso y el consultorio lo aprueba ' +
+        '(la primera persona que crea su cuenta queda como responsable).</p>' +
       '<form class="nube-form" novalidate>' +
+        campo('nombre', 'Nombre y apellido', 'text', 'autocomplete="name" maxlength="120"') +
         campo('email', 'Email', 'email', 'autocomplete="username" inputmode="email"') +
         campo('password', 'Contraseña (mínimo 6 caracteres)', 'password', 'autocomplete="new-password" minlength="6"') +
         campo('password2', 'Repetí la contraseña', 'password', 'autocomplete="new-password" minlength="6"') +
@@ -199,11 +209,14 @@
       ev.preventDefault();
       const f = ev.target;
       const email = f.email.value.trim().toLowerCase();
+      const nombre = f.nombre.value.trim();
+      if (!nombre) { aviso(scr, 'Escribí tu nombre y apellido.'); return; }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { aviso(scr, 'Ingresá un email válido.'); return; }
       if (f.password.value.length < 6) { aviso(scr, 'La contraseña debe tener al menos 6 caracteres.'); return; }
       if (f.password.value !== f.password2.value) { aviso(scr, 'Las contraseñas no coinciden.'); return; }
       aviso(scr, 'Creando cuenta…', 'info');
-      client.auth.signUp({ email: email, password: f.password.value, options: { emailRedirectTo: redirigirA() } })
+      try { localStorage.setItem(NOMBRE_KEY, nombre); } catch (e) { /* nada */ }
+      client.auth.signUp({ email: email, password: f.password.value, options: { emailRedirectTo: redirigirA(), data: { nombre: nombre } } })
         .then(function (r) {
           if (r.error) { aviso(scr, mensajeError(r.error)); return; }
           if (r.data.session) { entrar(r.data.user); return; }
@@ -256,16 +269,91 @@
     });
   }
 
-  function mostrarSinAcceso(email) {
+  /* Cuenta sin acceso: puede pedirlo desde acá y avisar por email */
+  function mostrarSinAcceso(email, user) {
+    cargando('Verificando acceso…');
+    client.from('solicitudes').select('email,nombre,mensaje,creado').eq('email', email).then(function (r) {
+      const previa = r && !r.error && r.data && r.data[0];
+      if (previa) mostrarSolicitudEnviada(email, previa);
+      else mostrarPedirAcceso(email, user, r && r.error);
+    }).catch(function () { mostrarPedirAcceso(email, user, null); });
+  }
+
+  function mostrarPedirAcceso(email, user, errorTabla) {
+    let nombre = (user && user.user_metadata && user.user_metadata.nombre) || '';
+    if (!nombre) { try { nombre = localStorage.getItem(NOMBRE_KEY) || ''; } catch (e) { /* nada */ } }
     const scr = pantalla(
-      '<h1>Tu cuenta todavía no tiene acceso</h1>' +
-      '<p class="nube-sub">Ingresaste como <strong>' + U.esc(email) + '</strong>. Pedile a alguien del consultorio que agregue ' +
-        'este email en <strong>Ajustes → Usuarios con acceso</strong>, y después tocá "Volver a intentar".</p>' +
+      '<h1>Pedí acceso al consultorio</h1>' +
+      '<p class="nube-sub">Ingresaste como <strong>' + U.esc(email) + '</strong>. Tu cuenta ya está creada: ' +
+        'falta que el consultorio te dé acceso.</p>' +
+      '<form class="nube-form" novalidate>' +
+        campo('nombre', 'Tu nombre y apellido', 'text', 'autocomplete="name" maxlength="120" value="' + U.esc(nombre) + '"') +
+        '<label class="nube-field"><span>Mensaje (opcional)</span>' +
+          '<textarea name="mensaje" rows="2" maxlength="500" placeholder="Ej: Soy la Lic. en Kinesiología que empieza los martes"></textarea></label>' +
+        '<p class="nube-msg" role="alert"></p>' +
+        '<button type="submit" class="btn btn-primary btn-lg nube-btn">' + U.icon('mail') + 'Solicitar acceso</button>' +
+      '</form>' +
+      '<div class="nube-links">' +
+        '<button type="button" class="linklike" data-ir="reintentar">Ya me dieron acceso</button>' +
+        '<button type="button" class="linklike" data-ir="salir">Cerrar sesión</button>' +
+      '</div>');
+    enlaces(scr);
+    if (errorTabla && /solicitudes|relation|schema cache|does not exist/i.test(String(errorTabla.message || ''))) {
+      aviso(scr, 'El consultorio todavía no activó las solicitudes. Pedile que agregue tu email en Ajustes → Usuarios con acceso.', 'info');
+    }
+    scr.querySelector('form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      const f = ev.target;
+      const nom = f.nombre.value.trim();
+      if (!nom) { aviso(scr, 'Escribí tu nombre y apellido.'); return; }
+      const btn = f.querySelector('button[type=submit]');
+      btn.disabled = true;
+      aviso(scr, 'Enviando solicitud…', 'info');
+      client.rpc('solicitar_acceso', { p_nombre: nom, p_mensaje: f.mensaje.value.trim() }).then(function (r) {
+        btn.disabled = false;
+        if (r.error) throw r.error;
+        if (r.data === true) { location.reload(); return; }
+        try { localStorage.removeItem(NOMBRE_KEY); } catch (e) { /* nada */ }
+        mostrarSolicitudEnviada(email, { nombre: nom, mensaje: f.mensaje.value.trim(), creado: new Date().toISOString() }, true);
+      }).catch(function (e) {
+        btn.disabled = false;
+        const msg = String((e && e.message) || '');
+        aviso(scr, /solicitar_acceso|function|schema cache/i.test(msg)
+          ? 'El consultorio todavía no activó las solicitudes. Pedile que agregue tu email en Ajustes → Usuarios con acceso.'
+          : mensajeError(e));
+      });
+    });
+  }
+
+  function mostrarSolicitudEnviada(email, sol, recien) {
+    const scr = pantalla(
+      '<div class="nube-ok-icon">' + U.icon('check') + '</div>' +
+      '<h1>' + (recien ? '¡Solicitud enviada!' : 'Tu solicitud está pendiente') + '</h1>' +
+      '<p class="nube-sub">' + (recien ? 'Le aparece al consultorio' : 'La enviaste el ' + U.fmtDate(String(sol.creado || '').slice(0, 10)) + '. Le aparece al consultorio') +
+        ' en <strong>Ajustes → Usuarios con acceso</strong>. Cuando la aprueben, tocá <strong>"Ya me dieron acceso"</strong>.</p>' +
+      '<p class="nube-sub small">Para que se enteren antes, avisales por email:</p>' +
       '<div class="nube-actions">' +
-        '<button type="button" class="btn btn-primary btn-lg" data-ir="reintentar">Volver a intentar</button>' +
+        '<a class="btn btn-primary btn-lg" data-mail href="#">' + U.icon('mail') + 'Avisar por email</a>' +
+        '<button type="button" class="btn btn-secondary btn-lg" data-ir="reintentar">Ya me dieron acceso</button>' +
+        '<button type="button" class="btn btn-ghost on-dark" data-ir="pedir">Cambiar mis datos</button>' +
         '<button type="button" class="btn btn-ghost on-dark" data-ir="salir">Cerrar sesión</button>' +
       '</div>');
     enlaces(scr);
+    scr.querySelector('[data-ir=pedir]').addEventListener('click', function () { mostrarPedirAcceso(email, { user_metadata: { nombre: sol.nombre } }); });
+    const link = scr.querySelector('[data-mail]');
+    function armar(destino) {
+      const asunto = 'Solicitud de acceso a ' + nombreConsultorio();
+      const cuerpo = 'Hola, soy ' + (sol.nombre || email) + '.\n\n' +
+        'Te pido acceso al sistema de ' + nombreConsultorio() + ' con mi cuenta ' + email + '.' +
+        (sol.mensaje ? '\n\n' + sol.mensaje : '') +
+        '\n\nPara aprobarla: entrá a ' + redirigirA() + ' → Ajustes → Usuarios con acceso → Aprobar.\n\nGracias.';
+      link.href = 'mailto:' + encodeURIComponent(destino || '').replace(/%40/g, '@') +
+        '?subject=' + encodeURIComponent(asunto) + '&body=' + encodeURIComponent(cuerpo);
+    }
+    armar('');
+    client.rpc('contacto_consultorio').then(function (r) {
+      if (r && !r.error && r.data) armar(r.data);
+    }).catch(function () {});
   }
 
   function mostrarErrorConexion(err, hayCache) {
@@ -369,7 +457,7 @@
     cargando('Verificando acceso…');
     client.rpc('reclamar_acceso_inicial').then(function (r) {
       if (r.error) throw r.error;
-      if (!r.data) { mostrarSinAcceso(email); return; }
+      if (!r.data) { mostrarSinAcceso(email, user); return; }
       return cargarTodo();
     }).catch(function (e) {
       const meta = leer(META_KEY);
@@ -606,6 +694,21 @@
         if (/duplicate|unique/i.test(r.error.message)) throw new Error('Ese email ya tiene acceso.');
         throw r.error;
       }
+    });
+  };
+
+  /* Solicitudes de acceso pendientes (sólo las ve quien ya tiene acceso) */
+  N.listarSolicitudes = function () {
+    if (!client || !usuario) return Promise.resolve([]);
+    return client.from('solicitudes').select('email,nombre,mensaje,creado').order('creado').then(function (r) {
+      if (r.error) throw r.error;
+      return (r.data || []).filter(function (x) { return x.email !== usuario; });
+    });
+  };
+
+  N.responderSolicitud = function (email, aprobar) {
+    return client.rpc('responder_solicitud', { p_email: email, p_aprobar: !!aprobar }).then(function (r) {
+      if (r.error) throw r.error;
     });
   };
 

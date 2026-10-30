@@ -3,7 +3,7 @@
  * Siempre intenta primero la versión más nueva (red) y, si no hay conexión, usa la guardada.
  * Solo maneja archivos de la propia app: los datos de Supabase nunca pasan por acá.
  */
-const CACHE = 'consultorio-v7';
+const CACHE = 'consultorio-v8';
 const ARCHIVOS = [
   './',
   'index.html',

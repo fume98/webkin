@@ -106,6 +106,21 @@
 
     main.innerHTML = html;
 
+    /* Profesionales que pidieron acceso (modo nube) */
+    if (S.esModoNube() && KF.Nube.listarSolicitudes) {
+      KF.Nube.listarSolicitudes().then(function (lista) {
+        if (!lista.length || !main.isConnected || main.querySelector('.notice-solicitudes')) return;
+        const quick = main.querySelector('.quick-grid');
+        if (!quick) return;
+        const nombres = lista.map(function (x) { return x.nombre || x.email; });
+        quick.insertAdjacentHTML('beforebegin', '<div class="notice notice-solicitudes">' + U.icon('mail') +
+          '<div><strong>' + (lista.length === 1 ? U.esc(nombres[0]) + ' pide acceso al consultorio'
+            : lista.length + ' profesionales piden acceso al consultorio') + '</strong>' +
+          '<p>' + (lista.length === 1 ? U.esc(lista[0].email) : U.esc(nombres.join(', '))) + '</p></div>' +
+          '<a class="btn btn-primary" href="#/ajustes/solicitudes">Revisar</a></div>');
+      }).catch(function () {});
+    }
+
     main.querySelectorAll('[data-turno]').forEach(function (el) {
       const open = function () { KF.Agenda.openDetail(el.dataset.turno, KF.App.refresh); };
       el.addEventListener('click', open);

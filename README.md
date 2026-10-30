@@ -115,15 +115,23 @@ Hay dos formas:
 - **Solo en un dispositivo:** en la app, **Ajustes → Base de datos en la nube → Conectar con Supabase**, y pegá los dos datos.
 
 ### 3. Primer ingreso
-1. Abrí la app y tocá **Crear una cuenta** con tu email y una contraseña.
+1. Abrí la app y tocá **Crear cuenta y pedir acceso** con tu nombre, email y una contraseña.
 2. Confirmá el email que te manda Supabase (revisá también la carpeta de spam) y después ingresá.
 3. **La primera cuenta que entra queda como dueña del consultorio.** Hacelo apenas termines de crear el proyecto.
 4. Si en ese dispositivo ya tenías pacientes cargados, la app te ofrece **subirlos a la nube**.
 
 ### 4. Sumar a los demás profesionales
-1. En **Ajustes → Usuarios con acceso**, agregá el email de la persona.
-2. Esa persona abre la app, toca **Crear una cuenta** con ese mismo email, confirma el email e ingresa.
-3. Para sacarle el acceso a alguien, tocá **Quitar acceso**.
+Los profesionales **no necesitan cuenta de Netlify**: solo el link de la app.
+1. Pasale el link de la app (por ejemplo `https://fisiocoresalud.netlify.app`).
+2. La persona toca **Crear cuenta y pedir acceso**, carga su nombre, email y contraseña, y toca **Solicitar acceso**. Con **Avisar por email** te manda un email ya escrito.
+3. Vos ves el pedido con un globito en **Ajustes**, un aviso en **Inicio** y el detalle en **Ajustes → Usuarios con acceso**. Tocá **Aprobar** o **Rechazar**.
+4. La persona toca **Ya me dieron acceso** y entra con su email y contraseña.
+
+También podés darle acceso directo: agregá su email en **Ajustes → Usuarios con acceso** y que cree la cuenta con ese mismo email. Para sacarle el acceso a alguien, tocá **Quitar acceso**.
+
+> **¿Ya tenías la base armada de antes?** Para activar las solicitudes de acceso corré una sola vez [`supabase/solicitudes.sql`](supabase/solicitudes.sql) en **SQL Editor**.
+
+> **Si al abrir el link Netlify pide iniciar sesión**, la protección de Netlify está activada: en Netlify andá a **Project configuration → Access & security → Visitor access** (o *Site protection*) y dejala en **No protection** / desactivada. También fijate de compartir el link principal (`https://<nombre>.netlify.app`) y no el de una versión de prueba (los que tienen `--` en el nombre). El acceso a los datos lo controla la app con usuario y contraseña.
 
 ### Cómo funciona
 - **Sin internet** la app sigue funcionando con los últimos datos. Lo que cargues se guarda en el dispositivo y **se sube solo** cuando vuelve la conexión. El estado se ve abajo en la barra lateral, o en el ícono de arriba en el celular.
@@ -210,4 +218,5 @@ herramientas/configurar-cliente.js  Prepara la instalación de un cliente (lo ej
 sw.js                 Permite abrir la app sin internet
 supabase/esquema.sql  Tablas y reglas de seguridad de la base de datos
 supabase/archivos.sql Carpeta privada para los archivos adjuntos (para bases ya creadas)
+supabase/solicitudes.sql Solicitudes de acceso de profesionales (para bases ya creadas)
 ```

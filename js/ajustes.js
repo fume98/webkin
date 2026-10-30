@@ -315,9 +315,11 @@
         (cfg.origen === 'dispositivo'
           ? '<button type="button" class="btn btn-ghost danger" id="nube-desconectar">Dejar de usar la nube en este dispositivo</button>' : '') +
       '</div>' +
-      '<h3 class="sub-title">' + U.icon('users') + 'Usuarios con acceso</h3>' +
-      '<p class="muted">Solo estas personas pueden ver los datos del consultorio. Para sumar a alguien: agregá su email acá ' +
-        'y pedile que entre a la app y toque <strong>"Crear una cuenta"</strong> con ese mismo email.</p>' +
+      '<h3 class="sub-title" id="usuarios-acceso">' + U.icon('users') + 'Usuarios con acceso</h3>' +
+      '<div id="solicitudes-lista"></div>' +
+      '<p class="muted">Solo estas personas pueden ver los datos del consultorio. Para sumar a alguien, pasale el link de la app: ' +
+        'toca <strong>"Crear cuenta y pedir acceso"</strong> y su solicitud aparece acá para aprobarla. ' +
+        'También podés agregar su email directamente.</p>' +
       '<div id="miembros-lista"><p class="muted">Cargando…</p></div>' +
       '<form class="add-member" id="miembro-form" novalidate>' +
         UI.field({ idPrefix: 'mb_', name: 'email', label: 'Email de la persona', type: 'email', required: true,
@@ -325,6 +327,48 @@
         '<button type="submit" class="btn btn-primary">' + U.icon('plus') + 'Dar acceso</button>' +
       '</form>' +
     '</section>';
+  }
+
+  /* Pedidos de acceso de profesionales que crearon su cuenta */
+  function cargarSolicitudes(main) {
+    const box = main.querySelector('#solicitudes-lista');
+    if (!box) return;
+    KF.Nube.listarSolicitudes().then(function (lista) {
+      if (!lista.length) { box.innerHTML = ''; return; }
+      box.innerHTML = '<div class="solicitudes">' +
+        '<h4>' + U.icon('mail') + (lista.length === 1 ? '1 persona pide acceso' : lista.length + ' personas piden acceso') + '</h4>' +
+        '<ul class="row-list compact">' + lista.map(function (x) {
+          return '<li class="row-item static solicitud"><div class="row-main">' +
+            '<strong>' + U.esc(x.nombre || x.email) + '</strong>' +
+            '<span class="muted small">' + U.esc(x.email) + ' · ' + U.fmtDate(String(x.creado || '').slice(0, 10)) + '</span>' +
+            (x.mensaje ? '<span class="sol-msg">"' + U.esc(x.mensaje) + '"</span>' : '') + '</div>' +
+            '<div class="sol-acciones">' +
+              '<button type="button" class="btn btn-sm btn-primary" data-aprobar="' + U.esc(x.email) + '">' + U.icon('check') + 'Aprobar</button>' +
+              '<button type="button" class="btn btn-sm btn-ghost danger" data-rechazar="' + U.esc(x.email) + '">' + U.icon('x') + 'Rechazar</button>' +
+            '</div></li>';
+        }).join('') + '</ul></div>';
+      function responder(email, aprobar) {
+        KF.Nube.responderSolicitud(email, aprobar).then(function () {
+          UI.toast(aprobar ? email + ' ya tiene acceso' : 'Solicitud rechazada');
+          cargarSolicitudes(main);
+          cargarMiembros(main);
+          KF.App.revisarSolicitudes();
+        }).catch(function (e) { UI.toast(KF.Nube.mensajeError(e), 'error'); });
+      }
+      box.querySelectorAll('[data-aprobar]').forEach(function (b) {
+        b.addEventListener('click', function () { responder(b.dataset.aprobar, true); });
+      });
+      box.querySelectorAll('[data-rechazar]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          if (window.confirm('¿Rechazar el pedido de ' + b.dataset.rechazar + '? No va a poder ver los datos del consultorio.')) responder(b.dataset.rechazar, false);
+        });
+      });
+    }).catch(function (e) {
+      if (/solicitudes|schema cache|does not exist|relation/i.test(String((e && e.message) || ''))) {
+        box.innerHTML = '<div class="notice">' + U.icon('alert') + '<div><strong>Activá las solicitudes de acceso</strong>' +
+          '<p>Para que los profesionales puedan pedir acceso desde la app, corré una vez el archivo <strong>supabase/solicitudes.sql</strong> en Supabase (SQL Editor).</p></div></div>';
+      }
+    });
   }
 
   function cargarMiembros(main) {
@@ -364,6 +408,10 @@
     if (conectar) conectar.addEventListener('click', abrirConexion);
     if (!S.esModoNube()) return;
     cargarMiembros(main);
+    cargarSolicitudes(main);
+    if (/solicitudes/.test(location.hash)) {
+      setTimeout(function () { const t = main.querySelector('#usuarios-acceso'); if (t) t.scrollIntoView({ block: 'start' }); }, 50);
+    }
     main.querySelector('#nube-sync').addEventListener('click', function () {
       KF.Nube.sincronizarAhora().then(function () {
         UI.toast(KF.Nube.pendientes() ? 'Quedan cambios por subir: revisá la conexión' : 'Todo sincronizado',

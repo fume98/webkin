@@ -58,8 +58,28 @@
     bottom.classList.toggle('muchos', cel.length > 5);
     const r = parseRoute();
     markNav(r.name, r.id);
+    pintarAvisoSolicitudes();
   }
   App.buildNav = buildNav;
+
+  /* Globito en "Ajustes" cuando hay profesionales pidiendo acceso */
+  let solicitudesPendientes = 0;
+  function pintarAvisoSolicitudes() {
+    document.querySelectorAll('[data-route=ajustes]').forEach(function (a) {
+      let b = a.querySelector('.nav-badge');
+      if (!solicitudesPendientes) { if (b) b.remove(); return; }
+      if (!b) { b = document.createElement('em'); b.className = 'nav-badge'; a.appendChild(b); }
+      b.textContent = solicitudesPendientes;
+      b.title = solicitudesPendientes === 1 ? '1 pedido de acceso' : solicitudesPendientes + ' pedidos de acceso';
+    });
+  }
+  App.revisarSolicitudes = function () {
+    if (!S.esModoNube() || !KF.Nube.listarSolicitudes || !navigator.onLine) return;
+    KF.Nube.listarSolicitudes().then(function (l) {
+      solicitudesPendientes = l.length;
+      pintarAvisoSolicitudes();
+    }).catch(function () {});
+  };
 
   function markNav(name, id) {
     let active = name === 'paciente' ? 'pacientes' : name;
@@ -255,6 +275,8 @@
       App.updateBrand();
       App.mostrarEstadoNube(KF.Nube.estado());
       KF.Archivos.iniciar();
+      App.revisarSolicitudes();
+      setInterval(App.revisarSolicitudes, 180000);
       if (S.settings.pinHash) App.lock();
       else App.refresh();
     });
